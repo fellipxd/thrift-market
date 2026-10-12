@@ -14,6 +14,11 @@ export default async function globalSetup(): Promise<void> {
   };
   const shop = await get('/shops/abuja-wardrobe');
   const item = /\/items\/[0-9a-f-]{36}/.exec(shop)?.[0];
-  const paths = ['/', '/search?q=linen', '/nearby', '/sign-in', '/sign-up', '/sell', '/saved', '/account', ...(item ? [item] : [])];
+  const paths = [
+    '/', '/search?q=linen', '/nearby', '/sign-in', '/sign-up', '/verify', '/sell', '/saved', '/account', '/account/addresses',
+    '/orders', '/orders/00000000-0000-0000-0000-000000000000', '/checkout/new', '/checkout/00000000-0000-0000-0000-000000000000',
+    '/checkout/return', '/sandbox/pay/none', '/sell/orders', '/sell/orders/00000000-0000-0000-0000-000000000000', '/sell/payouts',
+    ...(item ? [item] : []),
+  ];
   for (const p of paths) await get(p);
 }

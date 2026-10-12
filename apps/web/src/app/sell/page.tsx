@@ -10,7 +10,7 @@ import { Card, StatTile } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { routes } from '@/lib/routes';
-import { getCtx } from '@/server/session';
+import { getCtx, requireUserPage } from '@/server/session';
 import { publishShopAction } from './settings/actions';
 
 export const metadata = { title: 'Seller overview' };
@@ -31,6 +31,7 @@ function actionHref(a: { nextActionKind: string; listingId: string; auctionId: s
 }
 
 export default async function SellHome() {
+  await requireUserPage(routes.sell.home);
   const overview = await getSellerOverview(await getCtx());
   if (!overview) {
     return (

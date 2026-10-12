@@ -9,6 +9,9 @@ import { maybeOne, one, type Queryable } from '@thrift/database';
  *   auctions → offer_threads → inventory_stock → reservations → orders → payment_attempts → payouts
  *
  * Callers pass a transaction client (Tx). Never call external providers while these locks are held.
+ *
+ * restoreSoldUnits() is the only path that moves units out of "sold": used when a paid order is cancelled before
+ * dispatch (the unit never left the seller), recorded as an 'adjust' movement.
  */
 
 export interface StockRow extends StockLevels {
@@ -260,4 +263,26 @@ export async function countActiveReservations(db: Queryable, buyerUserId: string
     [buyerUserId],
   );
   return row.n;
+}
+
+/**
+ * Moves units from sold back to available when a paid order is cancelled before dispatch (the piece never left
+ * the seller). Recorded as an 'adjust' movement with the reason; listing status follows stock.
+ */
+export async function restoreSoldUnits(tx: Queryable, args: { listingId: string; quantity: number; reason: string; actorUserId?: string | null }): Promise<StockRow> {
+  const stock = await lockStock(tx, args.listingId);
+  if (!Number.isInteger(args.quantity) || args.quantity <= 0) throw new DomainError('VALIDATION_FAILED', 'Quantity must be a positive integer');
+  if (stock.quantitySold < args.quantity) throw new DomainError('INVALID_STATE', 'Only sold units can be restored');
+  const next: StockRow = { ...stock, quantitySold: stock.quantitySold - args.quantity, quantityAvailable: stock.quantityAvailable + args.quantity };
+  await writeStock(tx, next);
+  await tx.query(
+    `INSERT INTO inventory_movements (listing_id, kind, quantity, actor_user_id, reason) VALUES ($1, 'adjust', $2, $3, $4)`,
+    [args.listingId, args.quantity, args.actorUserId ?? null, args.reason],
+  );
+  await tx.query(
+    `UPDATE listings SET status = CASE WHEN status IN ('sold','reserved','active') THEN (CASE WHEN $2 > 0 THEN 'active' WHEN $3 > 0 THEN 'reserved' ELSE status END) ELSE status END,
+            sold_at = CASE WHEN $2 > 0 THEN NULL ELSE sold_at END, updated_at = now() WHERE id = $1`,
+    [args.listingId, next.quantityAvailable, next.quantityReserved],
+  );
+  return { ...next, version: stock.version + 1 };
 }

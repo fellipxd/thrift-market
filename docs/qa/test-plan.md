@@ -5,18 +5,18 @@ independent QA. Status values: **Pass** (automated test passing at the stated re
 
 | Test | Requirements | Scenario | Automated location | Status |
 | --- | --- | --- | --- | --- |
-| T01 | R06 R12 R13 | 100 concurrent attempts for one unit → one allocation; losers get no payable order | `test/core/inventory-authority.test.ts`, `test/checkout/*` | Pass at authority level (foundation); checkout-level: see slice C |
+| T01 | R06 R12 R13 | 100 concurrent attempts for one unit → one allocation; losers get no payable order | `test/core/inventory-authority.test.ts`, `test/checkout/checkout.test.ts` | Pass (authority and checkout: 100 concurrent checkouts → one order, one payment attempt) |
 | T02 | R06 R10 R11 R12 | Offer acceptance vs checkout vs seller stock edits | `test/offers/*` | Pending (slice E) |
-| T03 | R12–R14 | Expiry races successful/late/duplicate payment | `test/checkout/*` | Pending (slice C) |
-| T04 | R13 R14 R23 | Forged/duplicate/out-of-order webhooks; repeated refund/payout jobs | `test/payments/*` | Pending (slice C) |
+| T03 | R12–R14 | Expiry races successful/late/duplicate payment | `test/checkout/checkout.test.ts`, `test/checkout/payments.test.ts` | Pass (success before expiry; grace then late re-allocation; late refund when unit taken; duplicate payment refunded) |
+| T04 | R13 R14 R23 | Forged/duplicate/out-of-order webhooks; repeated refund/payout jobs | `test/checkout/payments.test.ts` | Pass (forged signature stored nothing; 5 concurrent deliveries → one capture/ledger/payout; failure-after-success no downgrade; amount mismatch not applied; concurrent refund workers → one provider refund; repeated payout release → one ledger posting) |
 | T05 | R11 | Parallel bids, close boundary, anti-sniping, duplicate finalisers | `test/auctions/*` | Pending (slice F) |
 | T06 | R11 R25 | Worker restart around end time | `test/auctions/*` | Pending (slice F) |
 | T07 | R11 R13 | Winner misses deadline; second chance without surprise charges | `test/auctions/*` | Pending (slice F) |
-| T08 | R01–R03 R09 R20 R23 | Cross-object access by buyer/seller/staff | per-slice isolation tests | Partial (catalogue/shops pass; other slices pending) |
-| T09 | R04–R06 R14 | Batch with distinct pieces; schema change preserves old listings | `test/catalogue/listings.test.ts` | Pass (listing snapshots; order snapshots pending slice C) |
+| T08 | R01–R03 R09 R20 R23 | Cross-object access by buyer/seller/staff | per-slice isolation tests | Partial (catalogue/shops/orders/refund decisions pass; other slices pending) |
+| T09 | R04–R06 R14 | Batch with distinct pieces; schema change preserves old listings | `test/catalogue/listings.test.ts`, `test/checkout/checkout.test.ts` | Pass (listing and order snapshots) |
 | T10 | R05 R17 | Undisclosed flaw dispute uses purchased snapshot | `test/disputes/*` | Pending (slice D) |
-| T11 | R08 R15 R16 | Nearby with permission denied; excluded destination; unavailable route | `test/discovery/feeds.test.ts`, `test/checkout/*` | Partial (discovery filter matrix and nearby pass; checkout enforcement pending slice C) |
-| T12 | R13 R16 R17 | Seller-reported delivery cannot release payout; dispute freezes release | `test/payouts/*`, `test/fulfilment/*` | Pending (slices C, D) |
+| T11 | R08 R15 R16 | Nearby with permission denied; excluded destination; unavailable route | `test/discovery/feeds.test.ts`, `test/checkout/checkout.test.ts` | Partial (discovery filter matrix, nearby and checkout refusal of undeliverable addresses pass; unavailable courier route at booking pending slice D) |
+| T12 | R13 R16 R17 | Seller-reported delivery cannot release payout; dispute freezes release | `test/checkout/payments.test.ts`, `test/fulfilment/*` | Partial (payout rules pass with delivery states set directly: seller-reported never eligible, buyer-confirmed/courier-verified eligible, open dispute blocks, unverified/cooling-off account blocks release; end-to-end via fulfilment pending slice D) |
 | T13 | R18 R19 R22 | Non-buyers cannot review; ads grant no trust; low review counts visible | `test/trust/*`, `test/ads/*` | Pending (slices G, H) |
 | T14 | R21 R22 R24 | Duplicate drop events do not spam; unsubscribe; sold listings leave promotion | `test/growth/*`, `test/ads/*` | Pending (slices G, H) |
 | T15 | R05 R09 R25 | Malicious/oversized uploads, forged MIME, spam | `test/media/*` | Pending |
