@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "tsc --noEmit -p tsconfig.json"
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "seed": "tsx src/seed/cli.ts"
   },
   "dependencies": {
     "@thrift/contracts": "workspace:*",
@@ -24,6 +25,7 @@
   "devDependencies": {
     "@types/pg": "^8.15.5",
     "sharp": "^0.34.4",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "tsx": "^4.20.6"
   }
 }

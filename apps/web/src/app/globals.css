@@ -1,0 +1,84 @@
+@import 'tailwindcss';
+
+/*
+ * Brand tokens — "modern thrift boutique" (warm cream, deep green, editorial fashion).
+ * Values come from the brand concept; contrast pairs are documented in docs/ux/design-system.md.
+ * Accent is never the only status cue: statuses always carry text.
+ */
+@theme {
+  --color-canvas: #f7f3eb;
+  --color-surface: #ffffff;
+  --color-sand: #ebe4d6;
+  --color-sand-strong: #ddd3c1;
+  --color-primary: #174a3c;
+  --color-primary-hover: #0f3a2e;
+  --color-primary-soft: #e4ece7;
+  --color-ink: #202923;
+  --color-muted: #59665d;
+  --color-accent: #a8442f;
+  --color-accent-soft: #f6e7e2;
+  --color-line: #d8ded6;
+  --color-line-strong: #7a867d;
+  --color-error: #a12d2d;
+  --color-error-soft: #f9e6e6;
+  --color-success: #1d6a44;
+  --color-success-soft: #e3f1e8;
+  --color-warning: #7d5300;
+  --color-warning-soft: #fbf0d9;
+  --color-info: #1f4f7a;
+  --color-info-soft: #e5eef7;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: var(--font-serif-display), ui-serif, Georgia, 'Times New Roman', serif;
+
+  --radius-card: 14px;
+  --radius-control: 10px;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  ::selection {
+    background: var(--color-primary-soft);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0.5rem;
+    z-index: 100;
+    background: var(--color-primary);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+  }
+  .skip-link:focus {
+    left: 0.5rem;
+  }
+  .prose-plain p + p {
+    margin-top: 0.75rem;
+  }
+}

@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { createPool, maybeOne, type Pool } from '@thrift/database';
+import { createPool, maybeOne, repoRoot, type Pool } from '@thrift/database';
 import {
   LocalDiskStorage,
   PaystackPaymentProvider,
@@ -58,7 +58,8 @@ export interface ServiceOptions {
 }
 
 export function createServices(opts: ServiceOptions): Services {
-  if (opts.env === 'production' && (!opts.appSecret || opts.appSecret.startsWith('dev-only'))) {
+  const building = process.env.NEXT_PHASE === 'phase-production-build';
+  if (opts.env === 'production' && !building && (!opts.appSecret || opts.appSecret.startsWith('dev-only'))) {
     throw new Error('APP_SECRET must be set to a strong random value in production');
   }
   const pool = createPool({ connectionString: opts.databaseUrl, max: opts.poolMax ?? 10, application_name: opts.applicationName ?? 'thrift' });
@@ -74,7 +75,7 @@ export function createServices(opts: ServiceOptions): Services {
     payments,
     courier: new SandboxCourierProvider({ baseUrl: opts.baseUrl, webhookSecret: opts.appSecret }),
     messages: new SandboxMessageSender(),
-    storage: opts.storage ?? new LocalDiskStorage(path.resolve(opts.mediaStorageDir ?? '.data/media')),
+    storage: opts.storage ?? new LocalDiskStorage(path.resolve(/*turbopackIgnore: true*/ opts.mediaStorageDir ?? '.data/media')),
   };
   const config: AppConfig = { env: opts.env, baseUrl: opts.baseUrl, appSecret: opts.appSecret };
   let counter = 0;
@@ -110,7 +111,7 @@ export function servicesFromEnv(overrides: Partial<ServiceOptions> = {}): Servic
     env,
     paymentProvider: process.env.PAYMENT_PROVIDER ?? 'sandbox',
     paystackSecretKey: process.env.PAYSTACK_SECRET_KEY,
-    mediaStorageDir: process.env.MEDIA_STORAGE_DIR,
+    mediaStorageDir: path.resolve(/*turbopackIgnore: true*/ repoRoot(), process.env.MEDIA_STORAGE_DIR ?? '.data/media'),
     ...overrides,
   });
 }

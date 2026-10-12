@@ -21,9 +21,10 @@
     "test:e2e": "pnpm --filter @thrift/web test:e2e",
     "db:migrate": "pnpm --filter @thrift/database migrate",
     "db:reset": "pnpm --filter @thrift/database reset",
-    "db:seed": "pnpm --filter @thrift/database seed",
+    "db:seed": "pnpm --filter @thrift/application seed",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "db:reseed": "pnpm --filter @thrift/application seed --reset"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",

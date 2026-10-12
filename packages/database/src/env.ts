@@ -24,3 +24,15 @@ export function loadEnvFile(startDir: string = process.cwd()): void {
     dir = parent;
   }
 }
+
+/** Repository root (directory containing pnpm-workspace.yaml), so relative paths mean the same thing in every process. */
+export function repoRoot(startDir: string = process.cwd()): string {
+  let dir = startDir;
+  for (let i = 0; i < 8; i++) {
+    if (existsSync(path.join(dir, 'pnpm-workspace.yaml'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return startDir;
+}

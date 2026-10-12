@@ -1,0 +1,21 @@
+{
+  "name": "@thrift/worker",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Durable background worker: outbox dispatch, reservation/payment reconciliation, auction finalisation, notifications.",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "once": "tsx src/index.ts --once",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@thrift/application": "workspace:*",
+    "@thrift/database": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6"
+  }
+}
