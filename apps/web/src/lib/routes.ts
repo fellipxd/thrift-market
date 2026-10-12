@@ -7,6 +7,7 @@ export const routes = {
   item: (listingId: string) => `/items/${listingId}`,
   itemOffer: (listingId: string) => `/items/${listingId}/offer`,
   startConversation: (listingId: string) => `/inbox/new?listing=${listingId}`,
+  orderConversation: (orderId: string) => `/inbox/new?order=${orderId}`,
   report: (kind: 'listing' | 'shop' | 'user' | 'message' | 'review', id: string) => `/report?kind=${kind}&id=${id}`,
   shop: (slug: string) => `/shops/${slug}`,
   shopReviews: (slug: string) => `/shops/${slug}/reviews`,

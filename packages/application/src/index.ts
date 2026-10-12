@@ -53,3 +53,5 @@ export * from './checkout/checkout';
 export * from './checkout/expiry';
 export * from './checkout/queries';
 export { registerCheckoutJobs } from './checkout/jobs';
+export * from './messaging';
+export * from './offers';

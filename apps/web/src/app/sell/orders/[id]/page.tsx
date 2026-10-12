@@ -5,6 +5,7 @@ import { FulfilmentBadge, PaymentBadge } from '@/components/orders/OrderStatusBa
 import { OrderDelivery, OrderItems, OrderTimeline, OrderTotals } from '@/components/orders/OrderSummary';
 import { ActionForm, SubmitButton } from '@/components/ui/ActionForm';
 import { Alert } from '@/components/ui/Alert';
+import { ButtonLink } from '@/components/ui/Button';
 import { CardSection } from '@/components/ui/Card';
 import { CheckboxField, TextAreaField } from '@/components/ui/Field';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -74,6 +75,9 @@ export default async function SellerOrderPage({ params }: { params: Promise<{ id
               {order.payout.eligibleAt && <p className="text-xs text-muted">Release from {formatWat(order.payout.eligibleAt)}</p>}
               <p className="mt-2 text-xs text-muted">Payouts are released after the buyer confirms delivery or delivery is verified — not on your own delivery report alone.</p>
             </CardSection>
+          )}
+          {order.status !== 'pending_payment' && (
+            <ButtonLink href={routes.orderConversation(order.id)} variant="secondary" className="w-full">Message the buyer</ButtonLink>
           )}
           <OrderTimeline order={order} />
         </div>

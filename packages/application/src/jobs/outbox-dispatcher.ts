@@ -3,11 +3,18 @@ import type { AppContext } from '../core/context';
 
 export type OutboxHandler = (ctx: AppContext, event: { id: number; topic: string; aggregateId: string | null; payload: Record<string, unknown> }, tx: Queryable) => Promise<void>;
 
-const handlers = new Map<string, OutboxHandler>();
+const handlers = new Map<string, OutboxHandler[]>();
 
-/** Registers a handler for an outbox topic. Handlers must be idempotent (events may be retried). */
+/**
+ * Registers a handler for an outbox topic. Handlers must be idempotent (events may be retried).
+ * Several modules may subscribe to the same topic (e.g. `order.paid` is consumed by messaging, offers
+ * and auctions); all of them run, in registration order, inside the event's transaction. Registering
+ * the same function twice for a topic is a no-op.
+ */
 export function registerOutboxHandler(topic: string, handler: OutboxHandler): void {
-  handlers.set(topic, handler);
+  const list = handlers.get(topic) ?? [];
+  if (!list.includes(handler)) list.push(handler);
+  handlers.set(topic, list);
 }
 
 export function registeredTopics(): string[] {
@@ -38,10 +45,12 @@ export async function dispatchOutbox(ctx: AppContext, batchSize = 50): Promise<{
   let processed = 0;
   let failed = 0;
   for (const ev of claimed) {
-    const handler = handlers.get(ev.topic);
+    const topicHandlers = handlers.get(ev.topic) ?? [];
     try {
       await withTransaction(ctx.pool, async (tx) => {
-        if (handler) await handler(ctx, { id: ev.id, topic: ev.topic, aggregateId: ev.aggregate_id, payload: ev.payload }, tx);
+        for (const handler of topicHandlers) {
+          await handler(ctx, { id: ev.id, topic: ev.topic, aggregateId: ev.aggregate_id, payload: ev.payload }, tx);
+        }
         await tx.query(`UPDATE outbox_events SET status = 'done', processed_at = now(), last_error = NULL WHERE id = $1`, [ev.id]);
       });
       processed++;

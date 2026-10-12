@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
-import { getUser } from '@/server/session';
+import { inboxUnreadCount } from '@thrift/application';
+import { getCtx, getUser } from '@/server/session';
 
 export function Wordmark() {
   return (
@@ -13,6 +14,7 @@ export function Wordmark() {
 
 export async function SiteHeader() {
   const user = await getUser();
+  const unread = user ? await inboxUnreadCount(await getCtx()).catch(() => 0) : 0;
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-canvas/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
@@ -41,6 +43,11 @@ export async function SiteHeader() {
           </Link>
           <Link href={routes.inbox} className="rounded-lg px-3 py-2 hover:bg-primary-soft">
             Inbox
+            {unread > 0 && (
+              <span className="ml-1 rounded-full bg-accent px-1.5 py-0.5 text-xs font-bold text-white" aria-label={`${unread} unread`}>
+                {unread > 99 ? '99+' : unread}
+              </span>
+            )}
           </Link>
           <Link href={routes.sell.home} className="rounded-lg px-3 py-2 hover:bg-primary-soft">
             Sell

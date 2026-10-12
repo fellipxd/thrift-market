@@ -3,6 +3,8 @@ import { registerTask } from './tasks';
 import { sendPendingOutboundMessages } from '../notifications/outbound';
 import { registerCatalogueJobs } from '../catalogue/jobs';
 import { registerCheckoutJobs } from '../checkout/jobs';
+import { registerMessagingJobs } from '../messaging/jobs';
+import { registerOffersJobs } from '../offers/jobs';
 
 /**
  * Explicit registry of background tasks and outbox handlers. Each feature module exports a
@@ -30,4 +32,6 @@ export function registerAllJobs(): void {
   // Feature modules register here (keep one line per module):
   registerCatalogueJobs();
   registerCheckoutJobs();
+  registerMessagingJobs();
+  registerOffersJobs();
 }
