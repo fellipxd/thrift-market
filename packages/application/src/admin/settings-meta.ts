@@ -24,4 +24,6 @@ export const SETTING_META: Record<SettingKey, { label: string; description: stri
   buyer_fee_flat_minor: { label: 'Buyer fee (flat)', description: 'Flat buyer fee in kobo. Decision D05 open.', unit: 'kobo', min: 0, max: 500_000 },
   max_upload_bytes: { label: 'Max upload size', description: 'Largest accepted photo upload.', unit: 'bytes', min: 1_000_000, max: 20_000_000 },
   max_listing_photos: { label: 'Max photos per listing', description: 'Photo limit per listing.', unit: 'photos', min: 2, max: 20 },
+  promotion_payment_window_hours: { label: 'Promotion payment window', description: 'Hours a booked promotion waits for payment before the booking lapses (a later payment is refunded automatically).', unit: 'hours', min: 1, max: 168 },
+  promotion_attribution_days: { label: 'Promotion attribution window', description: 'Orders within this many days after a shopper clicks a promotion are shown to the seller as attributed (informational only; never creates fees).', unit: 'days', min: 1, max: 30 },
 };

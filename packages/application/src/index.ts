@@ -62,3 +62,5 @@ export * from './fulfilment';
 export * from './disputes';
 export * from './trust';
 export * from './admin';
+export * from './promotions';
+export * from './insights';

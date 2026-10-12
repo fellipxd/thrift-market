@@ -10,6 +10,7 @@ import { ButtonLink } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { getLocationPreference } from '@/server/location';
+import { recordSponsoredImpressions } from '@/server/promotions';
 import { getCtx } from '@/server/session';
 
 export const metadata = { title: 'Nearby shops' };
@@ -35,6 +36,7 @@ export default async function NearbyPage({ searchParams }: { searchParams: Promi
     if (isDomainError(err) && err.code === 'VALIDATION_FAILED') error = err.message;
     else throw err;
   }
+  await recordSponsoredImpressions('nearby', res?.sponsored.map((s) => s.id) ?? []);
   const radius = typeof sp.radius === 'string' ? sp.radius : '25';
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
@@ -78,7 +80,7 @@ export default async function NearbyPage({ searchParams }: { searchParams: Promi
           {res.sponsored.length > 0 && (
             <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {res.sponsored.map((s) => (
-                <ShopCard key={`sp-${s.id}`} shop={s} />
+                <ShopCard key={`sp-${s.id}`} shop={s} sponsoredPlacement="nearby" />
               ))}
             </div>
           )}

@@ -10,6 +10,7 @@ import { registerFulfilmentJobs } from '../fulfilment/jobs';
 import { registerDisputesJobs } from '../disputes/jobs';
 import { registerTrustJobs } from '../trust/jobs';
 import { registerGrowthJobs } from '../growth/jobs';
+import { registerPromotionsJobs } from '../promotions/jobs';
 
 /**
  * Explicit registry of background tasks and outbox handlers. Each feature module exports a
@@ -30,7 +31,8 @@ export function registerAllJobs(): void {
       const rl = await ctx.pool.query(`DELETE FROM rate_limit_counters WHERE window_start < now() - interval '1 day'`);
       const idem = await ctx.pool.query(`DELETE FROM idempotency_records WHERE created_at < now() - interval '2 days'`);
       const views = await ctx.pool.query(`DELETE FROM listing_view_dedupe WHERE day < current_date - 2`);
-      return { rateLimit: rl.rowCount, idempotency: idem.rowCount, viewDedupe: views.rowCount };
+      const adViews = await ctx.pool.query(`DELETE FROM ad_impression_dedupe WHERE day < current_date - 2`);
+      return { rateLimit: rl.rowCount, idempotency: idem.rowCount, viewDedupe: views.rowCount, adViewDedupe: adViews.rowCount };
     },
   });
 
@@ -44,4 +46,5 @@ export function registerAllJobs(): void {
   registerDisputesJobs();
   registerTrustJobs();
   registerGrowthJobs();
+  registerPromotionsJobs();
 }

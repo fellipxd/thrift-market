@@ -25,6 +25,8 @@ export const DEFAULT_SETTINGS = {
   buyer_fee_flat_minor: 0,
   max_upload_bytes: 8 * 1024 * 1024,
   max_listing_photos: 12,
+  promotion_payment_window_hours: 24,
+  promotion_attribution_days: 7,
 } as const;
 
 export type SettingKey = keyof typeof DEFAULT_SETTINGS;

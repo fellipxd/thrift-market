@@ -19,6 +19,7 @@ export default async function globalSetup(): Promise<void> {
     '/orders', '/orders/00000000-0000-0000-0000-000000000000', '/checkout/new', '/checkout/00000000-0000-0000-0000-000000000000',
     '/checkout/return', '/sandbox/pay/none', '/sell/orders', '/sell/orders/00000000-0000-0000-0000-000000000000', '/sell/payouts', '/inbox', '/inbox/new', '/inbox/00000000-0000-0000-0000-000000000000', '/sell/offers', '/auctions', '/auctions/00000000-0000-0000-0000-000000000000', '/sell/auctions', '/sell/auctions/new', '/admin/disputes', '/admin/disputes/00000000-0000-0000-0000-000000000000', '/sandbox/courier/none', '/notifications', '/account/notifications', '/unsubscribe', '/report', '/admin/reports', '/admin/reviews', '/sell/reviews', '/shops/abuja-wardrobe/reviews',
     '/account/security', '/account/security/verify', '/admin', '/admin/operations', '/admin/audit', '/admin/settings', '/admin/staff',
+    '/sell/promotions', '/sell/promotions/return', '/sell/insights', '/admin/ads', '/api/v1/ads/click?p=home_feed&t=00000000-0000-0000-0000-000000000000',
     ...(item ? [item, `${item}/offer`] : []),
   ];
   for (const p of paths) await get(p);

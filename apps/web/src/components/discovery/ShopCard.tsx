@@ -4,12 +4,18 @@ import { Badge } from '@/components/ui/Badge';
 import { Photo } from '@/components/ui/Photo';
 import { routes } from '@/lib/routes';
 
-export function ShopCard({ shop }: { shop: ShopSummary }) {
+export function ShopCard({ shop, sponsoredPlacement }: { shop: ShopSummary; sponsoredPlacement?: 'nearby' }) {
   return (
     <article className="rounded-[var(--radius-card)] border border-line bg-surface p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <Link href={routes.shop(shop.slug)} className="line-clamp-1 text-lg font-semibold text-primary hover:underline">{shop.name}</Link>
+          {shop.sponsored && sponsoredPlacement ? (
+            <a href={routes.promoted(sponsoredPlacement, shop.id)} rel="sponsored nofollow" className="line-clamp-1 text-lg font-semibold text-primary hover:underline">
+              {shop.name}
+            </a>
+          ) : (
+            <Link href={routes.shop(shop.slug)} className="line-clamp-1 text-lg font-semibold text-primary hover:underline">{shop.name}</Link>
+          )}
           <p className="text-sm text-muted">
             {shop.locationLabel}
             {shop.distanceLabel ? ` · ${shop.distanceLabel}` : ''}

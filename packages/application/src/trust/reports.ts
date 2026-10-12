@@ -191,7 +191,7 @@ export async function actOnReport(ctx: AppContext, raw: unknown): Promise<{ repo
           await withdrawStock(tx, { listingId: report.target_id, quantity: stock.quantity_available, reason: 'moderation_removed', actorUserId: staff.userId });
         }
         await tx.query(`UPDATE listings SET status = 'removed', updated_at = now() WHERE id = $1`, [report.target_id]);
-        await tx.query(`UPDATE ad_campaigns SET status = 'ended', end_reason = 'listing_removed', updated_at = now() WHERE listing_id = $1 AND status IN ('scheduled','active','paused')`, [report.target_id]);
+        await tx.query(`UPDATE ad_campaigns SET status = 'ended', ended_at = least(now(), ends_at), end_reason = 'listing_removed', updated_at = now() WHERE listing_id = $1 AND status IN ('scheduled','active','paused')`, [report.target_id]);
         await enqueue(tx, { topic: 'listing.ended', aggregateId: report.target_id, payload: { listingId: report.target_id, shopId: target!.shopId, reason: 'moderation' }, dedupeKey: `listing.ended:${report.target_id}:moderation` });
         await record('listing', report.target_id, 'remove_listing');
         await notifyAffected(tx, target!.ownerUserId, 'A listing of yours was removed', input.reason, `mod:${actionId}`);
@@ -200,7 +200,7 @@ export async function actOnReport(ctx: AppContext, raw: unknown): Promise<{ repo
       case 'suspend_shop': {
         const shopId = target!.shopId!;
         await tx.query(`UPDATE shops SET status = 'suspended', updated_at = now() WHERE id = $1`, [shopId]);
-        await tx.query(`UPDATE ad_campaigns SET status = 'ended', end_reason = 'shop_suspended', updated_at = now() WHERE shop_id = $1 AND status IN ('scheduled','active','paused')`, [shopId]);
+        await tx.query(`UPDATE ad_campaigns SET status = 'ended', ended_at = least(now(), ends_at), end_reason = 'shop_suspended', updated_at = now() WHERE shop_id = $1 AND status IN ('scheduled','active','paused')`, [shopId]);
         await record('shop', shopId, 'suspend_shop');
         const owner = await one<{ owner_user_id: string }>(tx, 'SELECT owner_user_id FROM shops WHERE id = $1', [shopId]);
         await notifyAffected(tx, owner.owner_user_id, 'Your shop has been suspended', `${input.reason}. Existing paid orders must still be fulfilled`, `mod:${actionId}`);

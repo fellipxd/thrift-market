@@ -6,6 +6,7 @@ import { ButtonLink } from '@/components/ui/Button';
 import { ListingGrid } from '@/components/ui/ListingCard';
 import { routes } from '@/lib/routes';
 import { getLocationPreference } from '@/server/location';
+import { recordSponsoredImpressions } from '@/server/promotions';
 import { getCtx } from '@/server/session';
 
 function Section({ title, href, linkText = 'See all', children }: { title: string; href?: string; linkText?: string; children: React.ReactNode }) {
@@ -23,6 +24,7 @@ function Section({ title, href, linkText = 'See all', children }: { title: strin
 export default async function HomePage() {
   const location = await getLocationPreference();
   const feed = await getHomeFeed(await getCtx(), location);
+  await recordSponsoredImpressions('home_feed', feed.newDrops.filter((i) => i.sponsored).map((i) => i.id));
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -50,7 +52,7 @@ export default async function HomePage() {
       )}
 
       <Section title="New drops" href={routes.search({ sort: 'newest' })}>
-        <ListingGrid items={feed.newDrops} emptyText="No pieces yet — check back soon." />
+        <ListingGrid items={feed.newDrops} placement="home_feed" emptyText="No pieces yet — check back soon." />
         {feed.newDrops.some((i) => i.sponsored) && <p className="mt-3 text-xs text-muted">Sponsored pieces are paid placements and are always labelled.</p>}
       </Section>
 

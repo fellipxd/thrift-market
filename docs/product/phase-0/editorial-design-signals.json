@@ -1,0 +1,151 @@
+[
+  {
+    "packet_id": "PKT-THRIFT-TYPE-R3",
+    "from": "typography-director",
+    "to": "composition-director",
+    "job": "Editorial high-fashion visual direction for phase-0 design",
+    "decisions": [
+      {
+        "key": "typography_state",
+        "value": {
+          "concept_fonts": {
+            "display": "Installed Bodoni MT regular/italic",
+            "ui": "Installed Segoe UI"
+          },
+          "web_font_license_decision": "pending; local font files are not redistributed",
+          "scale": {
+            "cover": 77,
+            "desktop_campaign": 64,
+            "page_heading": 38,
+            "mobile_display": 28,
+            "pdf_body": 12
+          },
+          "units": "PDF points; future mobile UI body target 16 CSS px",
+          "text_zones": {
+            "cover_headline": [
+              55,
+              215,
+              500,
+              170
+            ],
+            "cover_body": [
+              55,
+              398,
+              470,
+              80
+            ]
+          },
+          "copy_locks": [
+            "THRIFT (working descriptor)",
+            "Fashion, found again.",
+            "Good pieces.",
+            "New stories."
+          ],
+          "ink_on_ivory_contrast": 15.73
+        },
+        "rationale": "Owner selected editorial high fashion; prominent serif contrasts with clear transaction type",
+        "priority": 1
+      }
+    ],
+    "evidence": [
+      "Direct owner request 9 October 2026",
+      "docs/phase-0/07-Editorial-Art-Direction.md",
+      "Local relative-luminance calculation 15.73:1"
+    ],
+    "confidence": 0.85,
+    "hard_vetoes": [
+      {
+        "rule": "Readable terms and provenance",
+        "reason": "Editorial styling cannot hide price, condition, fees or generated-image status",
+        "severity": "hard_gate"
+      }
+    ],
+    "soft_warnings": [
+      "Local concept typography is not a webfont licensing approval"
+    ],
+    "unresolved": [
+      "Final brand and licensed webfont pair"
+    ],
+    "recommended_next": [
+      "Validate compositions and task clarity in the final rendered review"
+    ]
+  },
+  {
+    "packet_id": "PKT-THRIFT-COMPOSITION-R3",
+    "from": "composition-director",
+    "to": "typography-director",
+    "job": "Art-directed desktop and mobile fashion marketplace screen composition",
+    "decisions": [
+      {
+        "key": "composition_state",
+        "value": {
+          "canvas": {
+            "width": 1100,
+            "height": 760,
+            "units": "PDF points"
+          },
+          "grid": {
+            "columns": 12,
+            "margin": 55,
+            "gutter_target": 24
+          },
+          "primary_anchor": {
+            "cover": [
+              615,
+              148,
+              430,
+              535
+            ],
+            "homepage_campaign": [
+              615,
+              247,
+              270,
+              296
+            ]
+          },
+          "secondary_anchor": {
+            "cover_text": [
+              55,
+              215,
+              500,
+              170
+            ]
+          },
+          "negative_space_ratio_target": 0.3,
+          "image_ratios": {
+            "campaign": "portrait",
+            "product": "full garment retained in detail gallery"
+          },
+          "component_geometry": {
+            "radius": 0,
+            "shadows": false,
+            "rules": 0.6
+          }
+        },
+        "rationale": "One dominant focal image; open paper and restrained metadata support the owner's fashion direction",
+        "priority": 1
+      }
+    ],
+    "evidence": [
+      "Original generated campaign, linen and leather images, built-in image_gen",
+      "docs/phase-0/editorial-image-provenance.json"
+    ],
+    "confidence": 0.8,
+    "hard_vetoes": [
+      {
+        "rule": "Actual inventory truth",
+        "reason": "Generated concept images may not represent real listings; condition/flaw evidence remains explicit",
+        "severity": "hard_gate"
+      }
+    ],
+    "soft_warnings": [
+      "Visual boards are not user-task or interactive accessibility evidence"
+    ],
+    "unresolved": [
+      "Final media rights/process, user-task validation"
+    ],
+    "recommended_next": [
+      "Inspect grayscale and thumbnail hierarchy; verify final page bounds"
+    ]
+  }
+]

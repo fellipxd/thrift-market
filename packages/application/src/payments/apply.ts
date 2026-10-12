@@ -25,6 +25,8 @@ export type ApplyOutcome =
 export interface ApplyResult {
   outcome: ApplyOutcome;
   orderId: string | null;
+  /** Set for promotion payments (purpose ad_campaign). */
+  adCampaignId?: string | null;
 }
 
 /** Handlers for non-order payment purposes (e.g. promotions) register here. */
@@ -60,13 +62,13 @@ interface OrderRow {
 export async function applyVerifiedPayment(ctx: AppContext, reference: string): Promise<ApplyResult> {
   const attempt = await findAttemptByReference(ctx.pool, reference);
   if (!attempt) return { outcome: 'not_found', orderId: null };
-  if (attempt.status === 'succeeded' || attempt.status === 'duplicate') return { outcome: 'already_applied', orderId: attempt.order_id };
+  if (attempt.status === 'succeeded' || attempt.status === 'duplicate') return { outcome: 'already_applied', orderId: attempt.order_id, adCampaignId: attempt.ad_campaign_id };
   let verified: VerifyPaymentResult;
   try {
     verified = await ctx.providers.payments.verify(reference);
   } catch {
     await ctx.pool.query(`UPDATE payment_attempts SET status = CASE WHEN status = 'initiated' THEN 'uncertain' ELSE status END, last_verified_at = now(), updated_at = now() WHERE id = $1`, [attempt.id]);
-    return { outcome: 'pending', orderId: attempt.order_id };
+    return { outcome: 'pending', orderId: attempt.order_id, adCampaignId: attempt.ad_campaign_id };
   }
   await ctx.pool.query(`UPDATE payment_attempts SET last_verified_at = now() WHERE id = $1`, [attempt.id]);
   if (attempt.purpose !== 'order') {

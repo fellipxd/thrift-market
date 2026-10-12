@@ -30,7 +30,18 @@ export const sellerCancelInput = z.object({
   restock: z.preprocess((v) => v === true || v === 'true' || v === 'on', z.boolean()).default(false),
 });
 
-export const REFUND_REASONS = ['buyer_cancelled', 'seller_cancelled', 'dispute_upheld', 'late_payment_after_release', 'duplicate_payment', 'not_delivered', 'staff_exception'] as const;
+export const REFUND_REASONS = [
+  'buyer_cancelled',
+  'seller_cancelled',
+  'dispute_upheld',
+  'late_payment_after_release',
+  'duplicate_payment',
+  'not_delivered',
+  'staff_exception',
+  'promotion_rejected',
+  'promotion_cancelled',
+  'promotion_ended_early',
+] as const;
 export type RefundReason = (typeof REFUND_REASONS)[number];
 
 export const staffRefundInput = z.object({

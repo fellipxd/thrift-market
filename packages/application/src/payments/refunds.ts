@@ -11,7 +11,9 @@ import { notifyUser } from '../notifications/notify';
 
 export interface RefundRow {
   id: string;
-  order_id: string;
+  /** Exactly one of order_id / ad_campaign_id is set. */
+  order_id: string | null;
+  ad_campaign_id: string | null;
   payment_attempt_id: string;
   amount_minor: number;
   reason: RefundReason;
@@ -25,6 +27,8 @@ export interface RefundRow {
 
 /** Refund reasons that pay back money held in refunds_payable (it was never owed to the seller). */
 const BUYER_OWED_REASONS: ReadonlySet<RefundReason> = new Set(['late_payment_after_release', 'duplicate_payment']);
+/** Refunds a staff member requests by judgement: a different finance/admin member must approve (four-eyes). */
+const FOUR_EYES_REASONS: ReadonlySet<RefundReason> = new Set(['staff_exception', 'promotion_ended_early']);
 
 /**
  * Creates a refund inside the caller's transaction (call after locking the order). Validates the amount against
@@ -72,7 +76,7 @@ export async function createRefund(
       refundableMinor: attempt.amount_minor - already.s,
     });
   }
-  const status = args.autoApprove && args.reason !== 'staff_exception' ? 'approved' : 'requested';
+  const status = args.autoApprove && !FOUR_EYES_REASONS.has(args.reason) ? 'approved' : 'requested';
   const refund = await one<RefundRow>(
     tx,
     `INSERT INTO refunds (order_id, payment_attempt_id, amount_minor, reason, note, status, requested_by, approved_by, idempotency_key)
@@ -105,7 +109,7 @@ export async function decideRefund(ctx: AppContext, raw: unknown): Promise<{ ref
     if (!r) throw new DomainError('NOT_FOUND', 'Refund not found.');
     if (r.status !== 'requested') throw new DomainError('INVALID_STATE', 'This refund has already been decided.');
     if (input.decision === 'approve') {
-      if (r.reason === 'staff_exception' && r.requested_by === staff.userId) {
+      if (FOUR_EYES_REASONS.has(r.reason) && r.requested_by === staff.userId) {
         throw new DomainError('FORBIDDEN', 'A different finance team member must approve an exception you requested.');
       }
       await tx.query(`UPDATE refunds SET status = 'approved', approved_by = $2, updated_at = now() WHERE id = $1`, [r.id, staff.userId]);
@@ -116,7 +120,9 @@ export async function decideRefund(ctx: AppContext, raw: unknown): Promise<{ ref
         staff.userId,
         ` [rejected: ${input.reason}]`,
       ]);
-      const open = await one<{ n: number }>(tx, `SELECT count(*)::int AS n FROM refunds WHERE order_id = $1 AND status IN ('requested','approved','processing')`, [r.order_id]);
+      const open = r.order_id
+        ? await one<{ n: number }>(tx, `SELECT count(*)::int AS n FROM refunds WHERE order_id = $1 AND status IN ('requested','approved','processing')`, [r.order_id])
+        : { n: -1 };
       if (open.n === 0) {
         await tx.query(
           `UPDATE orders SET payment_status = CASE WHEN EXISTS (SELECT 1 FROM refunds WHERE order_id = $1 AND status = 'succeeded') THEN 'partially_refunded' ELSE 'paid' END,
@@ -224,7 +230,8 @@ export async function processRefunds(ctx: AppContext, batchSize = 20): Promise<{
 /** Applies a provider-confirmed refund exactly once (ledger + order payment state + payout adjustment). */
 export async function confirmRefund(ctx: AppContext, refundId: string, providerReference: string | null): Promise<void> {
   await withTransaction(ctx.pool, async (tx) => {
-    const peek = await one<{ order_id: string }>(tx, 'SELECT order_id FROM refunds WHERE id = $1', [refundId]);
+    const peek = await one<{ order_id: string | null; ad_campaign_id: string | null }>(tx, 'SELECT order_id, ad_campaign_id FROM refunds WHERE id = $1', [refundId]);
+    if (peek.ad_campaign_id) return confirmPromotionRefund(tx, refundId, peek.ad_campaign_id, providerReference);
     await tx.query('SELECT id FROM orders WHERE id = $1 FOR UPDATE', [peek.order_id]);
     const r = await one<RefundRow>(tx, 'SELECT * FROM refunds WHERE id = $1 FOR UPDATE', [refundId]);
     if (r.status === 'succeeded') return;
@@ -276,5 +283,89 @@ export async function confirmRefund(ctx: AppContext, refundId: string, providerR
       link: `/orders/${r.order_id}`,
       dedupeKey: `refund-succeeded:${r.id}`,
     });
+  });
+}
+
+/**
+ * Creates a refund of a promotion payment inside the caller's transaction (call after locking the campaign).
+ * Same rules as order refunds: never more than what is still refundable on the payment, idempotent on the key,
+ * judgement refunds wait for a second staff member.
+ */
+export async function createPromotionRefund(
+  tx: Queryable,
+  ctx: AppContext,
+  args: { campaignId: string; paymentAttemptId?: string | null; amountMinor: number; reason: RefundReason; note?: string | null; requestedBy?: string | null; autoApprove: boolean; idempotencyKey: string },
+): Promise<RefundRow> {
+  const existing = await maybeOne<RefundRow>(tx, 'SELECT * FROM refunds WHERE idempotency_key = $1', [args.idempotencyKey]);
+  if (existing) return existing;
+  if (!Number.isSafeInteger(args.amountMinor) || args.amountMinor <= 0) throw new DomainError('VALIDATION_FAILED', 'Refund amount must be positive.');
+  const attempt = await maybeOne<{ id: string; amount_minor: number; status: string }>(
+    tx,
+    args.paymentAttemptId
+      ? `SELECT id, amount_minor, status FROM payment_attempts WHERE id = $2 AND ad_campaign_id = $1`
+      : `SELECT id, amount_minor, status FROM payment_attempts WHERE ad_campaign_id = $1 AND status = 'succeeded' ORDER BY succeeded_at LIMIT 1`,
+    args.paymentAttemptId ? [args.campaignId, args.paymentAttemptId] : [args.campaignId],
+  );
+  if (!attempt || !['succeeded', 'duplicate'].includes(attempt.status)) {
+    throw new DomainError('INVALID_STATE', 'There is no confirmed payment to refund for this promotion.');
+  }
+  const already = await one<{ s: number }>(
+    tx,
+    `SELECT coalesce(sum(amount_minor), 0)::bigint AS s FROM refunds WHERE payment_attempt_id = $1 AND status NOT IN ('rejected','failed')`,
+    [attempt.id],
+  );
+  if (args.amountMinor > attempt.amount_minor - already.s) {
+    throw new DomainError('VALIDATION_FAILED', 'The refund is more than the amount still refundable on this payment.', {
+      refundableMinor: attempt.amount_minor - already.s,
+    });
+  }
+  const status = args.autoApprove && !FOUR_EYES_REASONS.has(args.reason) ? 'approved' : 'requested';
+  const refund = await one<RefundRow>(
+    tx,
+    `INSERT INTO refunds (ad_campaign_id, payment_attempt_id, amount_minor, reason, note, status, requested_by, approved_by, idempotency_key)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, $8) RETURNING *`,
+    [args.campaignId, attempt.id, args.amountMinor, args.reason, args.note ?? null, status, args.requestedBy ?? null, args.idempotencyKey],
+  );
+  await recordAudit(tx, ctx, {
+    action: 'refund.created',
+    targetKind: 'refund',
+    targetId: refund.id,
+    data: { adCampaignId: args.campaignId, amountMinor: args.amountMinor, reason: args.reason, status },
+  });
+  if (status === 'approved') await enqueue(tx, { topic: 'refund.approved', aggregateId: refund.id, dedupeKey: `refund.approved:${refund.id}` });
+  return refund;
+}
+
+/** Applies a provider-confirmed promotion refund exactly once: ledger, the campaign's refunded total, seller notice. */
+async function confirmPromotionRefund(tx: Queryable, refundId: string, campaignId: string, providerReference: string | null): Promise<void> {
+  const c = await one<{ shop_id: string }>(tx, 'SELECT shop_id FROM ad_campaigns WHERE id = $1 FOR UPDATE', [campaignId]);
+  const r = await one<RefundRow>(tx, 'SELECT * FROM refunds WHERE id = $1 FOR UPDATE', [refundId]);
+  if (r.status === 'succeeded') return;
+  // A duplicate payment was parked in refunds_payable at capture; everything else was recognised as ad revenue.
+  const debit: LedgerLine = BUYER_OWED_REASONS.has(r.reason)
+    ? { account: 'refunds_payable', amountMinor: r.amount_minor }
+    : { account: 'ad_revenue', amountMinor: r.amount_minor, shopId: c.shop_id };
+  await postLedgerTransaction(tx, {
+    kind: 'refund_issued',
+    description: `Promotion refund ${r.reason.replace(/_/g, ' ')}`,
+    idempotencyKey: `refund:${r.id}`,
+    lines: [debit, { account: 'provider_clearing', amountMinor: -r.amount_minor }],
+  });
+  await tx.query(`UPDATE refunds SET status = 'succeeded', provider_reference = coalesce($2, provider_reference), confirmed_at = now(), updated_at = now() WHERE id = $1`, [
+    r.id,
+    providerReference,
+  ]);
+  if (!BUYER_OWED_REASONS.has(r.reason)) {
+    await tx.query('UPDATE ad_campaigns SET refund_minor = refund_minor + $2, updated_at = now() WHERE id = $1', [campaignId, r.amount_minor]);
+  }
+  const owner = await one<{ owner_user_id: string }>(tx, 'SELECT owner_user_id FROM shops WHERE id = $1', [c.shop_id]);
+  await notifyUser(tx, {
+    userId: owner.owner_user_id,
+    topic: 'transactional',
+    kind: 'promotion_refund_succeeded',
+    title: 'Promotion refund confirmed',
+    body: 'The payment provider has confirmed your promotion refund. It may take a few days to appear on your statement.',
+    link: '/sell/promotions',
+    dedupeKey: `refund-succeeded:${r.id}`,
   });
 }

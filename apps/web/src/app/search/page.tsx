@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ListingGrid } from '@/components/ui/ListingCard';
 import { routes } from '@/lib/routes';
 import { getLocationPreference } from '@/server/location';
+import { recordSponsoredImpressions } from '@/server/promotions';
 import { getCtx } from '@/server/session';
 
 type SP = Record<string, string | string[] | undefined>;
@@ -54,7 +55,11 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
     if (isDomainError(err) && err.code === 'VALIDATION_FAILED') error = err.message;
     else throw err;
   }
-  const [categories, sizes] = await Promise.all([discoveryCategories(ctx), sizeFacets(ctx, { category: typeof sp.category === 'string' ? sp.category : null })]);
+  const [categories, sizes] = await Promise.all([
+    discoveryCategories(ctx),
+    sizeFacets(ctx, { category: typeof sp.category === 'string' ? sp.category : null }),
+    recordSponsoredImpressions('search_results', result?.sponsored.map((i) => i.id) ?? []),
+  ]);
   const f = result?.filters;
   const chips: { label: string; href: string }[] = [];
   if (f) {
@@ -211,7 +216,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
           )}
           {result && result.sponsored.length > 0 && (
             <section aria-label="Sponsored" className="mb-6">
-              <ListingGrid items={result.sponsored} />
+              <ListingGrid items={result.sponsored} placement="search_results" />
               <p className="mt-2 text-xs text-muted">Sponsored placements are paid and always labelled. They don’t affect search ranking or seller reputation.</p>
             </section>
           )}

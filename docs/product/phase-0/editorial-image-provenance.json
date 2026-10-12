@@ -1,0 +1,25 @@
+{
+  "revision": 3,
+  "date": "2026-10-09",
+  "tool": "built-in image_gen",
+  "purpose": "planning imagery only; never real inventory photography",
+  "prompts": [
+    {
+      "id": "campaign",
+      "prompt": "Use case: photorealistic-natural. Asset: portrait campaign photograph for a Nigeria-wide secondhand fashion marketplace high-fashion editorial design concept. Original fashion editorial, adult Nigerian woman with dark skin, wearing a beautifully structured oversized ivory linen shirt tucked into relaxed chocolate tailored trousers, understated vintage brown leather bag in hand, poised candid standing pose, natural face and textured skin, no brand logos. Warm ivory plaster studio with raw stone floor, tall side window light and soft deep shadows. Full body with breathing space above head and beneath shoes; vertical portrait composition. Rich natural linen texture, quiet sophistication, subtle analog film grain, art magazine atmosphere, directional photography, restrained ivory/chocolate/ink palette. No lettering, graphic frames, watermark, jewellery logos, glamour retouching or luxury brand references. This is concept campaign imagery, not real seller inventory."
+    },
+    {
+      "id": "shirt",
+      "prompt": "Use case: product-mockup. Asset: original portrait product photograph for a high-fashion thrift marketplace concept. One oversized ivory linen button-up shirt with pointed collar and long sleeves on a simple wood hanger against warm light plaster wall. Entire garment and cuffs visible, front view, perfectly realistic weave, subtle rumples from wear, small faint brown mark on the left sleeve cuff, no branding or text. Art directed still-life with directional soft daylight from upper left, tonal shadows, relaxed tailoring, beautiful warm cream monochrome palette, editorial magazine product photography rather than generic ecommerce cutout. Keep neutral empty background. No model, no logos, no watermark. Illustrative item concept, not actual inventory."
+    },
+    {
+      "id": "bag",
+      "prompt": "Use case: product-mockup. Asset: original portrait still-life for high-fashion editorial thrift marketplace concept. One vintage dark brown leather structured shoulder bag with a slender handle and understated brass closure on a warm pale stone pedestal. Lived-in leather patina and slight edge wear visible, natural realistic material, no logos. Side-lit warm ivory plaster studio, deep sculptural soft shadows, elegant spare composition with generous negative space around whole bag. Fashion editorial still-life photography, rich restrained brown ivory and black palette, fine analog texture. No lettering, watermark, designer branding or authenticity claim. Illustrative concept item, not actual seller inventory."
+    }
+  ],
+  "assets": {
+    "campaign": "../../outputs/editorial-assets/campaign-v3.png",
+    "shirt": "../../outputs/editorial-assets/linen-shirt-v3.png",
+    "bag": "../../outputs/editorial-assets/leather-bag-v3.png"
+  }
+}

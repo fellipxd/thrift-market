@@ -48,7 +48,7 @@ export default async function FinancePage() {
             {f.refundsAwaitingDecision.map((r) => (
               <li key={r.id} className="rounded-[var(--radius-card)] border border-line p-3">
                 <p className="text-sm">
-                  <span className="font-semibold">{formatNaira(r.amountMinor)}</span> on order {r.orderNumber} · {r.reason.replace(/_/g, ' ')}
+                  <span className="font-semibold">{formatNaira(r.amountMinor)}</span> {r.orderNumber.startsWith('Promotion') ? r.orderNumber : `on order ${r.orderNumber}`} · {r.reason.replace(/_/g, ' ')}
                   {r.requestedBy && <span className="text-muted"> · requested by {r.requestedBy}</span>}
                 </p>
                 {r.note && <p className="text-sm text-muted">{r.note}</p>}

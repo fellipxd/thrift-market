@@ -8,3 +8,4 @@ export * from './auctions';
 export * from './fulfilment';
 export * from './trust';
 export * from './admin';
+export * from './promotions';

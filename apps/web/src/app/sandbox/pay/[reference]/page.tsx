@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { services } from '@/server/services';
 import { simulatePaymentAction } from './actions';
+import { sandboxReturnPath } from './return-path';
 
 export const metadata = { title: 'Sandbox payment', robots: { index: false } };
 export const dynamic = 'force-dynamic';
@@ -14,10 +15,11 @@ export const dynamic = 'force-dynamic';
  * Stand-in for the payment provider's hosted page while the real provider is not enabled (decision D04).
  * Clearly labelled as a simulation; unavailable in production or when a real provider is configured.
  */
-export default async function SandboxPayPage({ params }: { params: Promise<{ reference: string }> }) {
+export default async function SandboxPayPage({ params, searchParams }: { params: Promise<{ reference: string }>; searchParams: Promise<{ callback?: string }> }) {
   const svc = services();
   if (!svc.providers.payments.isSandbox || svc.providers.payments.name !== 'sandbox' || svc.config.env === 'production') notFound();
   const { reference } = await params;
+  const returnPath = sandboxReturnPath((await searchParams).callback);
   const rec = await svc.sandboxPayments.get(decodeURIComponent(reference));
   if (!rec) notFound();
   return (
@@ -38,6 +40,7 @@ export default async function SandboxPayPage({ params }: { params: Promise<{ ref
         ) : (
           <ActionForm action={simulatePaymentAction} refreshOnSuccess={false} className="space-y-2">
             <input type="hidden" name="reference" value={rec.reference} />
+            <input type="hidden" name="returnPath" value={returnPath} />
             <SubmitButton name="outcome" value="succeeded" size="lg" className="w-full" pendingText="Processing…">Simulate successful payment</SubmitButton>
             <SubmitButton name="outcome" value="failed" variant="secondary" className="w-full" pendingText="Processing…">Simulate declined payment</SubmitButton>
             <SubmitButton name="outcome" value="abandoned" variant="ghost" className="w-full" pendingText="Processing…">Close without paying</SubmitButton>

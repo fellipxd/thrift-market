@@ -5,7 +5,7 @@ import { isUniqueViolation, maybeOne, one, withTransaction } from '@thrift/datab
 import { recordAudit } from '../core/audit';
 import { requireUser } from '../core/authz';
 import type { AppContext } from '../core/context';
-import { enforceRateLimit } from '../core/rate-limit';
+import { assertWithinRateLimit, enforceRateLimit, recordRateLimitHit } from '../core/rate-limit';
 import { parseInput } from '../core/validation';
 import { DUMMY_HASH, hashPassword, verifyPassword } from './passwords';
 import { createSession } from './sessions';
@@ -64,7 +64,9 @@ export async function register(ctx: AppContext, raw: unknown, meta: { userAgent?
 export async function login(ctx: AppContext, raw: unknown, meta: { userAgent?: string | null } = {}): Promise<SessionResult> {
   const input = parseInput(loginInput, raw);
   await enforceRateLimit(ctx.pool, `login:${ctx.ip ?? 'unknown'}`, 30, 900);
-  await enforceRateLimit(ctx.pool, `login-contact:${input.contact.toLowerCase()}`, 10, 900);
+  // Per account, only wrong attempts count (guessing protection); successful sign-ins never throttle the owner.
+  const contactBucket = `login-contact:${input.contact.toLowerCase()}`;
+  await assertWithinRateLimit(ctx.pool, contactBucket, 10, 900);
   const contact = input.contact.trim();
   const normalisedPhone = contact.replace(/[\s()-]/g, '').replace(/^0/, '+234').replace(/^234/, '+234');
   const user = await maybeOne<{ id: string; password_hash: string; status: string; locked_until: Date | null; failed_login_count: number }>(
@@ -75,7 +77,10 @@ export async function login(ctx: AppContext, raw: unknown, meta: { userAgent?: s
   );
   const ok = await verifyPassword(input.password, user?.password_hash ?? DUMMY_HASH);
   const generic = new DomainError('UNAUTHENTICATED', 'That email/phone and password do not match.');
-  if (!user) throw generic;
+  if (!user) {
+    await recordRateLimitHit(ctx.pool, contactBucket, 900);
+    throw generic;
+  }
   if (user.locked_until && new Date(user.locked_until) > ctx.now()) {
     throw new DomainError('RATE_LIMITED', 'Too many failed sign-in attempts. Try again in 15 minutes.');
   }
@@ -86,6 +91,7 @@ export async function login(ctx: AppContext, raw: unknown, meta: { userAgent?: s
         WHERE id = $1`,
       [user.id, MAX_FAILED_LOGINS],
     );
+    await recordRateLimitHit(ctx.pool, contactBucket, 900);
     throw generic;
   }
   if (user.status !== 'active') throw new DomainError('FORBIDDEN', 'This account is not active. Contact support.');

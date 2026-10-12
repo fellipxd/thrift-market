@@ -413,18 +413,22 @@ export async function financeOverview(ctx: AppContext): Promise<FinanceOverview>
   const [unresolved, awaiting, inflight, payouts, webhooks, ledger, unbalanced] = await Promise.all([
     many<{ reference: string; number: string | null; status: string; amount_minor: number; created_at: Date; failure_reason: string | null }>(
       db,
-      `SELECT pa.reference, o.number, pa.status, pa.amount_minor, pa.created_at, pa.failure_reason FROM payment_attempts pa LEFT JOIN orders o ON o.id = pa.order_id
+      `SELECT pa.reference, coalesce(o.number, CASE WHEN pa.purpose = 'ad_campaign' THEN 'Promotion' END) AS number, pa.status, pa.amount_minor, pa.created_at, pa.failure_reason FROM payment_attempts pa LEFT JOIN orders o ON o.id = pa.order_id
         WHERE pa.status IN ('uncertain','initiated') OR (pa.status = 'pending' AND pa.created_at < now() - interval '30 minutes')
         ORDER BY pa.created_at LIMIT 100`,
     ),
     many<{ id: string; number: string; amount_minor: number; reason: string; note: string | null; requested_by: string | null; created_at: Date }>(
       db,
-      `SELECT r.id, o.number, r.amount_minor, r.reason, r.note, u.display_name AS requested_by, r.created_at FROM refunds r JOIN orders o ON o.id = r.order_id
+      `SELECT r.id, coalesce(o.number, 'Promotion · ' || ps.name) AS number, r.amount_minor, r.reason, r.note, u.display_name AS requested_by, r.created_at
+         FROM refunds r LEFT JOIN orders o ON o.id = r.order_id
+         LEFT JOIN ad_campaigns ac ON ac.id = r.ad_campaign_id LEFT JOIN shops ps ON ps.id = ac.shop_id
          LEFT JOIN users u ON u.id = r.requested_by WHERE r.status = 'requested' ORDER BY r.created_at`,
     ),
     many<{ id: string; number: string; amount_minor: number; reason: string; status: string; attempts: number }>(
       db,
-      `SELECT r.id, o.number, r.amount_minor, r.reason, r.status, r.attempts FROM refunds r JOIN orders o ON o.id = r.order_id
+      `SELECT r.id, coalesce(o.number, 'Promotion · ' || ps.name) AS number, r.amount_minor, r.reason, r.status, r.attempts
+         FROM refunds r LEFT JOIN orders o ON o.id = r.order_id
+         LEFT JOIN ad_campaigns ac ON ac.id = r.ad_campaign_id LEFT JOIN shops ps ON ps.id = ac.shop_id
         WHERE r.status IN ('approved','processing','failed') ORDER BY r.updated_at LIMIT 100`,
     ),
     many<{ status: string; n: number; s: number }>(db, `SELECT status, count(*)::int AS n, coalesce(sum(amount_minor),0)::bigint AS s FROM payouts GROUP BY status ORDER BY status`),

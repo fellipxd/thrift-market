@@ -73,6 +73,8 @@ export const routes = {
     staff: '/admin/staff',
     operations: '/admin/operations',
   },
+  /** Sponsored entries go through the click counter, which redirects to the item or shop. */
+  promoted: (placement: 'home_feed' | 'search_results' | 'nearby', targetId: string) => withQuery('/api/v1/ads/click', { p: placement, t: targetId }),
   sandbox: {
     pay: (reference: string) => `/sandbox/pay/${encodeURIComponent(reference)}`,
     courier: (reference: string) => `/sandbox/courier/${encodeURIComponent(reference)}`,
