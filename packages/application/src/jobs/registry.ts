@@ -5,6 +5,7 @@ import { registerCatalogueJobs } from '../catalogue/jobs';
 import { registerCheckoutJobs } from '../checkout/jobs';
 import { registerMessagingJobs } from '../messaging/jobs';
 import { registerOffersJobs } from '../offers/jobs';
+import { registerAuctionsJobs } from '../auctions/jobs';
 
 /**
  * Explicit registry of background tasks and outbox handlers. Each feature module exports a
@@ -34,4 +35,5 @@ export function registerAllJobs(): void {
   registerCheckoutJobs();
   registerMessagingJobs();
   registerOffersJobs();
+  registerAuctionsJobs();
 }

@@ -47,13 +47,13 @@ export function shopSummaryColumns(nowParam: string): string {
     dc.scope AS coverage_scope, dc.states AS coverage_states, dc.excluded_states AS coverage_excluded,
     dc.offers_pickup, dc.offers_seller_arranged, dc.offers_integrated,
     CASE WHEN s.status = 'active' THEN (
-      SELECT count(*)::int FROM listings la LEFT JOIN auctions aa ON aa.listing_id = la.id
+      SELECT count(*)::int FROM listings la LEFT JOIN LATERAL (SELECT * FROM auctions ax WHERE ax.listing_id = la.id ORDER BY ax.created_at DESC LIMIT 1) aa ON true
        WHERE la.shop_id = s.id AND la.status = 'active' AND ${visible('la', 'aa')}
     ) ELSE 0 END AS active_count,
     CASE WHEN s.status = 'active' THEN ARRAY(
       SELECT ph.key FROM (
         SELECT ${firstPhotoSql('lt')} AS key, coalesce(lt.published_at, lt.created_at) AS published, lt.id
-          FROM listings lt LEFT JOIN auctions at2 ON at2.listing_id = lt.id
+          FROM listings lt LEFT JOIN LATERAL (SELECT * FROM auctions ax WHERE ax.listing_id = lt.id ORDER BY ax.created_at DESC LIMIT 1) at2 ON true
          WHERE lt.shop_id = s.id AND ${visible('lt', 'at2')}
          ORDER BY published DESC, lt.id DESC
          LIMIT 6

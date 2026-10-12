@@ -4,3 +4,4 @@ export * from './discovery';
 export * from './checkout';
 export * from './messaging';
 export * from './offers';
+export * from './auctions';

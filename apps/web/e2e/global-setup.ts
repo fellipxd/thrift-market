@@ -17,7 +17,7 @@ export default async function globalSetup(): Promise<void> {
   const paths = [
     '/', '/search?q=linen', '/nearby', '/sign-in', '/sign-up', '/verify', '/sell', '/saved', '/account', '/account/addresses',
     '/orders', '/orders/00000000-0000-0000-0000-000000000000', '/checkout/new', '/checkout/00000000-0000-0000-0000-000000000000',
-    '/checkout/return', '/sandbox/pay/none', '/sell/orders', '/sell/orders/00000000-0000-0000-0000-000000000000', '/sell/payouts', '/inbox', '/inbox/new', '/inbox/00000000-0000-0000-0000-000000000000', '/sell/offers',
+    '/checkout/return', '/sandbox/pay/none', '/sell/orders', '/sell/orders/00000000-0000-0000-0000-000000000000', '/sell/payouts', '/inbox', '/inbox/new', '/inbox/00000000-0000-0000-0000-000000000000', '/sell/offers', '/auctions', '/auctions/00000000-0000-0000-0000-000000000000', '/sell/auctions', '/sell/auctions/new',
     ...(item ? [item, `${item}/offer`] : []),
   ];
   for (const p of paths) await get(p);

@@ -304,7 +304,7 @@ export async function sizeFacets(ctx: AppContext, args: { category?: string | nu
   const rows = await many<{ label: string; n: number }>(
     ctx.pool,
     `SELECT min(l.size_label) AS label, count(*)::int AS n
-       FROM listings l JOIN shops s ON s.id = l.shop_id LEFT JOIN auctions a ON a.listing_id = l.id
+       FROM listings l JOIN shops s ON s.id = l.shop_id LEFT JOIN LATERAL (SELECT * FROM auctions ax WHERE ax.listing_id = l.id ORDER BY ax.created_at DESC LIMIT 1) a ON true
       WHERE ${where.join(' AND ')}
       GROUP BY lower(l.size_label)
       ORDER BY n DESC, label

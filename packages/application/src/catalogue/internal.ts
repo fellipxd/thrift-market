@@ -90,7 +90,7 @@ export async function lockForEdit(tx: Queryable, ctx: AppContext, listingId: str
   if (peek.status !== 'draft') {
     auction = await maybeOne<{ id: string; status: string; bid_count: number }>(
       tx,
-      `SELECT id, status, bid_count FROM auctions WHERE listing_id = $1 FOR UPDATE`,
+      `SELECT id, status, bid_count FROM auctions WHERE listing_id = $1 ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,
       [listingId],
     );
     const hasStock = await maybeOne(tx, `SELECT 1 AS ok FROM inventory_stock WHERE listing_id = $1`, [listingId]);

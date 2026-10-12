@@ -377,7 +377,7 @@ async function loadOverview(db: Queryable, ctx: AppContext, shopId: string): Pro
             (SELECT o.id FROM order_items oi JOIN orders o ON o.id = oi.order_id
               WHERE oi.listing_id = l.id AND o.status = 'confirmed' AND o.payment_status = 'paid' AND o.fulfilment_status IN ('unfulfilled','awaiting_dispatch')
               ORDER BY o.created_at LIMIT 1) AS ship_order_id
-       FROM listings l LEFT JOIN inventory_stock st ON st.listing_id = l.id LEFT JOIN auctions a ON a.listing_id = l.id
+       FROM listings l LEFT JOIN inventory_stock st ON st.listing_id = l.id LEFT JOIN LATERAL (SELECT * FROM auctions ax WHERE ax.listing_id = l.id ORDER BY ax.created_at DESC LIMIT 1) a ON true
       WHERE l.shop_id = $1 AND l.status <> 'removed'
       ORDER BY (CASE WHEN l.status IN ('draft','reserved','paused') THEN 0 ELSE 1 END), l.updated_at DESC
       LIMIT 8`,

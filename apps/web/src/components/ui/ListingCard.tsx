@@ -12,7 +12,7 @@ export function ListingCard({ item }: { item: ListingCardData }) {
   const price = item.saleMode === 'auction' ? item.auctionCurrentMinor ?? item.priceMinor : item.priceMinor;
   return (
     <article className="group relative">
-      <Link href={routes.item(item.id)} className="block rounded-[var(--radius-card)] focus-visible:outline-offset-4">
+      <Link href={item.saleMode === 'auction' && item.auctionId ? routes.auction(item.auctionId) : routes.item(item.id)} className="block rounded-[var(--radius-card)] focus-visible:outline-offset-4">
         <div className="relative aspect-[4/5] overflow-hidden rounded-[var(--radius-card)] bg-sand">
           <Photo storageKey={item.photoKey} alt={item.title} className="h-full w-full transition-transform group-hover:scale-[1.02]" />
           <div className="absolute left-2 top-2 flex flex-wrap gap-1">
