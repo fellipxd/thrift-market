@@ -35,3 +35,6 @@ export * from './delivery/quote';
 export * from './catalogue/cards';
 
 // Feature modules (one line per module):
+export * from './shops';
+export * from './catalogue';
+export * from './growth/saves-follows';

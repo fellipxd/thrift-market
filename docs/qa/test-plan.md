@@ -12,8 +12,8 @@ independent QA. Status values: **Pass** (automated test passing at the stated re
 | T05 | R11 | Parallel bids, close boundary, anti-sniping, duplicate finalisers | `test/auctions/*` | Pending (slice F) |
 | T06 | R11 R25 | Worker restart around end time | `test/auctions/*` | Pending (slice F) |
 | T07 | R11 R13 | Winner misses deadline; second chance without surprise charges | `test/auctions/*` | Pending (slice F) |
-| T08 | R01–R03 R09 R20 R23 | Cross-object access by buyer/seller/staff | per-slice isolation tests | Partial |
-| T09 | R04–R06 R14 | Batch with distinct pieces; schema change preserves old listings | `test/catalogue/*` | Pending (slice A) |
+| T08 | R01–R03 R09 R20 R23 | Cross-object access by buyer/seller/staff | per-slice isolation tests | Partial (catalogue/shops pass; other slices pending) |
+| T09 | R04–R06 R14 | Batch with distinct pieces; schema change preserves old listings | `test/catalogue/listings.test.ts` | Pass (listing snapshots; order snapshots pending slice C) |
 | T10 | R05 R17 | Undisclosed flaw dispute uses purchased snapshot | `test/disputes/*` | Pending (slice D) |
 | T11 | R08 R15 R16 | Nearby with permission denied; excluded destination; unavailable route | `test/discovery/*`, `test/checkout/*` | Pending (slices B, C) |
 | T12 | R13 R16 R17 | Seller-reported delivery cannot release payout; dispute freezes release | `test/payouts/*`, `test/fulfilment/*` | Pending (slices C, D) |
