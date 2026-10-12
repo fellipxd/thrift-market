@@ -64,7 +64,7 @@ export type ShipmentStatus = keyof typeof SHIPMENT_STATUS;
 export const DISPUTE_STATUS = define({
   awaiting_seller: ['awaiting_buyer', 'under_review', 'resolved', 'withdrawn'],
   awaiting_buyer: ['awaiting_seller', 'under_review', 'resolved', 'withdrawn'],
-  under_review: ['awaiting_seller', 'awaiting_buyer', 'resolved'],
+  under_review: ['awaiting_seller', 'awaiting_buyer', 'resolved', 'withdrawn'],
   resolved: ['appealed'],
   appealed: ['resolved'],
   withdrawn: [],

@@ -215,6 +215,15 @@ const EVENT_LABEL: Record<string, string> = {
   refund_succeeded: 'Refund confirmed by the payment provider',
   seller_cancelled: 'Cancelled by the seller',
   payout_released: 'Seller paid',
+  dispatched: 'Dispatched by the seller',
+  dispatch_late: 'Dispatch is late',
+  courier_delivered: 'Delivered (courier scan)',
+  delivery_exception: 'Delivery problem reported by the courier',
+  buyer_confirmed: 'Buyer confirmed delivery',
+  delivery_staff_verified: 'Delivery verified by support',
+  delivery_confirmation_reminder: 'Buyer reminded to confirm delivery',
+  dispute_opened: 'Problem reported — payout on hold',
+  dispute_resolved: 'Dispute resolved',
 };
 
 /** Order detail for its buyer or a member of the selling shop; anyone else gets NOT_FOUND. */
@@ -261,7 +270,7 @@ export async function getOrderDetail(ctx: AppContext, orderId: string): Promise<
     [o.id],
   );
   const payout = viewer === 'seller' ? await maybeOne<{ amount_minor: number; status: string; eligible_at: Date | null }>(ctx.pool, 'SELECT amount_minor, status, eligible_at FROM payouts WHERE order_id = $1', [o.id]) : null;
-  const events = await many<{ created_at: Date; kind: string }>(ctx.pool, 'SELECT created_at, kind FROM order_events WHERE order_id = $1 ORDER BY id', [o.id]);
+  const events = await many<{ created_at: Date; kind: string }>(ctx.pool, `SELECT created_at, kind FROM order_events WHERE order_id = $1 AND kind NOT IN ('delivery_review_needed') ORDER BY id`, [o.id]);
   const dt = o.delivery_terms as { dispatchDays?: number; transitDaysMin?: number; transitDaysMax?: number; trackingNote?: string };
   const paidOrLater = ['paid', 'refund_pending', 'partially_refunded', 'refunded'].includes(o.payment_status) && o.status !== 'pending_payment';
   return {

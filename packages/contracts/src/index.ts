@@ -5,3 +5,4 @@ export * from './checkout';
 export * from './messaging';
 export * from './offers';
 export * from './auctions';
+export * from './fulfilment';
