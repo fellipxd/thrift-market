@@ -30,4 +30,8 @@ export * from './jobs/tasks';
 export * from './jobs/outbox-dispatcher';
 export * from './jobs/registry';
 
+// Shared read/delivery helpers
+export * from './delivery/quote';
+export * from './catalogue/cards';
+
 // Feature modules (one line per module):

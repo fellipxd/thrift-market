@@ -1,27 +1,11 @@
 import Link from 'next/link';
+import type { ListingCard } from '@thrift/application';
 import { CONDITION_INFO, formatNaira, stateLabel, type ConditionGrade } from '@thrift/domain';
 import { routes } from '@/lib/routes';
 import { Badge } from './Badge';
 import { Photo } from './Photo';
 
-export interface ListingCardData {
-  id: string;
-  title: string;
-  priceMinor: number | null;
-  saleMode: 'fixed' | 'negotiable' | 'auction';
-  status: string;
-  condition: ConditionGrade | null;
-  sizeLabel: string | null;
-  city: string;
-  state: string;
-  photoKey: string | null;
-  shopName?: string;
-  sponsored?: boolean;
-  /** For auctions: current bid (or opening price) and end time. */
-  auctionCurrentMinor?: number | null;
-  auctionEndsAt?: string | null;
-  quantityAvailable?: number | null;
-}
+export type ListingCardData = ListingCard;
 
 /** Product card used by home, search, shop, saved and nearby. Never implies stock beyond recorded units. */
 export function ListingCard({ item }: { item: ListingCardData }) {
