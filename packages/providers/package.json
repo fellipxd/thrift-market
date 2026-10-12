@@ -1,0 +1,22 @@
+{
+  "name": "@thrift/providers",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Payment, courier, notification and storage adapters plus deterministic sandbox implementations.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@thrift/domain": "workspace:*",
+    "sharp": "^0.34.4"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.11"
+  }
+}

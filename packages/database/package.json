@@ -1,0 +1,23 @@
+{
+  "name": "@thrift/database",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "migrate": "tsx src/cli/migrate.ts",
+    "reset": "tsx src/cli/reset.ts",
+    "seed": "tsx src/cli/seed.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.15.5",
+    "tsx": "^4.20.6"
+  }
+}

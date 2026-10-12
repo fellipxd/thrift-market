@@ -1,0 +1,29 @@
+{
+  "name": "@thrift/application",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Transactional use cases, access checks and orchestration shared by web and worker processes.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./test/support/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@thrift/contracts": "workspace:*",
+    "@thrift/database": "workspace:*",
+    "@thrift/domain": "workspace:*",
+    "@thrift/providers": "workspace:*",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.15.5",
+    "sharp": "^0.34.4",
+    "vitest": "^4.1.11"
+  }
+}

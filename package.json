@@ -1,0 +1,33 @@
+{
+  "name": "thrift-market",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Nigeria-wide thrift fashion marketplace (modular monolith).",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @thrift/web dev",
+    "dev:worker": "pnpm --filter @thrift/worker dev",
+    "build": "pnpm --filter @thrift/web build",
+    "start": "pnpm --filter @thrift/web start",
+    "worker": "pnpm --filter @thrift/worker start",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "lint": "pnpm -r --parallel lint",
+    "test": "pnpm -r --workspace-concurrency=1 test",
+    "test:unit": "pnpm --filter @thrift/domain test",
+    "test:integration": "pnpm --filter @thrift/application test",
+    "test:e2e": "pnpm --filter @thrift/web test:e2e",
+    "db:migrate": "pnpm --filter @thrift/database migrate",
+    "db:reset": "pnpm --filter @thrift/database reset",
+    "db:seed": "pnpm --filter @thrift/database seed",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "prettier": "^3.6.2",
+    "typescript": "5.9.3"
+  }
+}
