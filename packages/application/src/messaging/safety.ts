@@ -1,6 +1,6 @@
 /**
  * Non-blocking safety heuristics for chat. Messages are still delivered; the UI shows a notice
- * ("Pay through checkout to keep your purchase protected") next to anything that looks like an attempt
+ * ("Pay through checkout so the purchase is recorded …") next to anything that looks like an attempt
  * to move payment or contact off the platform. False positives are acceptable; it is advice, not a block.
  */
 
@@ -33,7 +33,7 @@ export function assessMessageSafety(body: string | null | undefined): SafetyAsse
 }
 
 export const SAFETY_NOTICE =
-  'Pay through checkout to keep your purchase protected. Never pay by direct bank transfer or move the conversation off Thrift Market.';
+  'Pay through checkout so the purchase is recorded with its order, delivery tracking and support. Never pay by direct bank transfer or move the conversation off Thrift Market.';
 
 /** Normalises a body for duplicate-spam comparison (case, whitespace and punctuation-insensitive). */
 export function spamFingerprint(body: string): string {

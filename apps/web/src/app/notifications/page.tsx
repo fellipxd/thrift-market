@@ -36,12 +36,12 @@ export default async function NotificationsPage({ searchParams }: { searchParams
       {res.items.length === 0 ? (
         <EmptyState title="No notifications yet">Updates about your orders, messages and the shops you follow will appear here.</EmptyState>
       ) : (
-        <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface">
+        <ul className="divide-y divide-line border-y border-ink">
           {res.items.map((n) => (
-            <li key={n.id} className={cx(!n.read && 'bg-primary-soft/40')}>
+            <li key={n.id} className={cx(!n.read && 'bg-sand/60')}>
               <ActionForm action={openNotificationAction} showSuccess={false}>
                 <input type="hidden" name="notificationId" value={n.id} />
-                <button type="submit" className="block w-full p-3 text-left hover:bg-primary-soft/60">
+                <button type="submit" className="block w-full px-2 py-4 text-left hover:bg-sand">
                   <span className="flex items-start justify-between gap-2">
                     <span className={cx('text-sm', n.read ? 'text-ink' : 'font-semibold text-ink')}>
                       {!n.read && <span className="mr-1 inline-block h-2 w-2 rounded-sm bg-accent" aria-label="Unread" />}

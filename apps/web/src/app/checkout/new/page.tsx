@@ -39,9 +39,10 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
-      <PageHeader eyebrow="Protected checkout" title="Review and pay" description="Your payment is held by Thrift Market and only released to the seller after delivery is confirmed." />
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <div className="space-y-6">
+      <PageHeader eyebrow="Checkout" title="Review and pay" description="Check the piece, delivery and total. Your order is confirmed only after the payment provider verifies your payment." />
+      <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
+        {/* Phones: piece, address, then the delivery choice/total/pay decision, then the full terms (linked above Pay). */}
+        <div className="space-y-6 lg:col-start-1">
           <Card className="flex gap-4 p-4">
             <div className="h-24 w-20 flex-none overflow-hidden rounded-lg bg-sand">
               {c.listing.photoUrl && <Photo src={c.listing.photoUrl} alt={c.listing.title} className="h-full w-full object-cover" />}
@@ -109,21 +110,9 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
             )}
           </CardSection>
 
-          {c.policies.length > 0 && (
-            <CardSection title="Buyer protection and returns">
-              <div className="space-y-3 text-sm text-muted">
-                {c.policies.map((p) => (
-                  <div key={p.title}>
-                    <p className="font-semibold text-ink">{p.title}</p>
-                    <p className="whitespace-pre-line">{p.body}</p>
-                  </div>
-                ))}
-              </div>
-            </CardSection>
-          )}
         </div>
 
-        <aside>
+        <aside className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
           <Card className="sticky top-4 p-4">
             {c.blocked ? (
               <Alert tone="warning" title="Checkout unavailable">{c.blocked}</Alert>
@@ -170,11 +159,16 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
                   <div className="flex justify-between"><dt className="text-muted">Item{c.quantity > 1 ? `s (${c.quantity})` : ''}</dt><dd>{formatNaira(c.options[0]!.totals.itemsTotalMinor)}</dd></div>
                   <div className="flex justify-between"><dt className="text-muted">Delivery</dt><dd>shown per option above</dd></div>
                   {c.options[0]!.totals.buyerFeeMinor > 0 && (
-                    <div className="flex justify-between"><dt className="text-muted">Buyer protection fee</dt><dd>{formatNaira(c.options[0]!.totals.buyerFeeMinor)}</dd></div>
+                    <div className="flex justify-between"><dt className="text-muted">Buyer fee</dt><dd>{formatNaira(c.options[0]!.totals.buyerFeeMinor)}</dd></div>
                   )}
                 </dl>
                 {!c.reservation && (
                   <p className="mt-3 text-xs text-muted">When you continue, the piece is held for you for {c.holdMinutes} minutes while you pay.</p>
+                )}
+                {c.policies.length > 0 && (
+                  <p className="mt-2 text-xs text-muted">
+                    Continuing means you accept the <a href="#purchase-terms" className="text-primary underline">terms for this purchase</a>.
+                  </p>
                 )}
                 <SubmitButton size="lg" className="mt-4 w-full" pendingText="Reserving…">Continue to payment</SubmitButton>
                 <p className="mt-2 text-center text-xs text-muted">You’ll pay on the payment provider’s secure page.</p>
@@ -182,6 +176,21 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
             )}
           </Card>
         </aside>
+
+        <div id="purchase-terms" className="lg:col-start-1">
+            {c.policies.length > 0 && (
+              <CardSection title="Terms for this purchase">
+                <div className="space-y-3 text-sm text-muted">
+                  {c.policies.map((p) => (
+                    <div key={p.title}>
+                      <p className="font-semibold text-ink">{p.title}</p>
+                      <p className="whitespace-pre-line">{p.body}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardSection>
+            )}
+        </div>
       </div>
     </div>
   );

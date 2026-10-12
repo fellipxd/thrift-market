@@ -45,8 +45,9 @@ export default async function AuctionPage({ params }: { params: Promise<{ id: st
       <nav aria-label="Breadcrumb" className="mb-3 text-sm text-muted">
         <Link href={routes.auctions} className="underline">Auctions</Link> / <span>{view.listing.title}</span>
       </nav>
-      <div className="grid gap-8 lg:grid-cols-[1.1fr_1fr]">
-        <div className="space-y-6">
+      {/* Phones: photos, then the bid panel, then condition details (key decision info stays next to the image). */}
+      <div className="grid gap-8 lg:grid-cols-[1.1fr_1fr] lg:items-start">
+        <div className="lg:col-start-1">
           {item ? (
             <ItemGallery photos={item.photos} title={item.title} />
           ) : (
@@ -55,42 +56,10 @@ export default async function AuctionPage({ params }: { params: Promise<{ id: st
               <img src={view.listing.photos[0].url} alt={view.listing.photos[0].alt} className="w-full rounded-[var(--radius-card)] bg-sand object-cover" />
             )
           )}
-          <Card className="space-y-3 p-4">
-            <h2 className="font-serif text-xl">Condition and details</h2>
-            <p className="text-sm">
-              {[view.listing.conditionLabel, view.listing.sizeLabel && `Size ${view.listing.sizeLabel}`].filter(Boolean).join(' · ')}
-            </p>
-            {item?.description && <p className="whitespace-pre-line text-sm text-muted">{item.description}</p>}
-            {view.listing.flaws.length > 0 ? (
-              <div>
-                <p className="text-sm font-semibold">Disclosed flaws</p>
-                <ul className="list-disc pl-5 text-sm text-muted">
-                  {view.listing.flaws.map((f, i) => (
-                    <li key={i}>
-                      {f.description}
-                      {f.location ? ` (${f.location})` : ''} — {f.severity}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <p className="text-sm text-muted">The seller declares no known flaws.</p>
-            )}
-            {item && item.measurements.length > 0 && (
-              <dl className="grid grid-cols-2 gap-1 text-sm">
-                {item.measurements.map((m) => (
-                  <div key={m.key} className="flex justify-between gap-2">
-                    <dt className="text-muted">{m.label}</dt>
-                    <dd>{m.valueCm} cm</dd>
-                  </div>
-                ))}
-              </dl>
-            )}
-          </Card>
         </div>
-        <div className="space-y-5">
+        <div className="space-y-5 lg:col-start-2 lg:row-span-2 lg:row-start-1">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-accent">Scheduled auction</p>
+            <p className="label-caps text-accent">Auction</p>
             <h1 className="display text-[2.25rem] text-ink sm:text-5xl">{view.listing.title}</h1>
             <p className="mt-1 text-sm text-muted">
               from <Link href={routes.shop(view.listing.shop.slug)} className="underline">{view.listing.shop.name}</Link> · {view.listing.shop.city}, {view.listing.shop.state}{' '}
@@ -123,6 +92,40 @@ export default async function AuctionPage({ params }: { params: Promise<{ id: st
           <p className="text-xs text-muted">
             Something wrong with this listing? <Link href={routes.report('listing', view.listingId)} className="underline">Report it</Link>.
           </p>
+        </div>
+        <div className="lg:col-start-1">
+          <Card className="space-y-3 p-4">
+            <h2 className="font-serif text-xl">Condition and details</h2>
+            <p className="text-sm">
+              {[view.listing.conditionLabel, view.listing.sizeLabel && `Size ${view.listing.sizeLabel}`].filter(Boolean).join(' · ')}
+            </p>
+            {item?.description && <p className="whitespace-pre-line text-sm text-muted">{item.description}</p>}
+            {view.listing.flaws.length > 0 ? (
+              <div>
+                <p className="text-sm font-semibold">Disclosed flaws</p>
+                <ul className="list-disc pl-5 text-sm text-muted">
+                  {view.listing.flaws.map((f, i) => (
+                    <li key={i}>
+                      {f.description}
+                      {f.location ? ` (${f.location})` : ''} — {f.severity}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-sm text-muted">The seller declares no known flaws.</p>
+            )}
+            {item && item.measurements.length > 0 && (
+              <dl className="grid gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
+                {item.measurements.map((m) => (
+                  <div key={m.key} className="flex justify-between gap-2">
+                    <dt className="text-muted">{m.label}</dt>
+                    <dd>{m.valueCm} cm</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </Card>
         </div>
       </div>
     </div>

@@ -17,7 +17,7 @@ type FormState =
   | { status: 'error'; message: string; code?: string; fieldErrors?: Record<string, string> };
 type Action = (prev: FormState, form: FormData) => Promise<FormState>;
 
-const SAFETY_NOTICE = 'Pay through checkout to keep your purchase protected. Never pay by direct bank transfer or move the conversation off Thrift Market.';
+const SAFETY_NOTICE = 'Pay through checkout so the purchase is recorded with its order, delivery tracking and support. Never pay by direct bank transfer or move the conversation off Thrift Market.';
 const POLL_MS = 4000;
 
 function newKey(): string {
@@ -264,7 +264,7 @@ function OfferCard({
   return (
     <div className={cx('w-full max-w-sm rounded-[var(--radius-card)] border-2 bg-surface p-3', mine ? 'self-end' : 'self-start', isPending ? 'border-accent' : 'border-line')}>
       <p className="text-xs font-semibold uppercase tracking-wide text-muted">{who}</p>
-      <p className="font-serif text-2xl text-ink">{formatNaira(offer.amountMinor)}</p>
+      <p className="text-2xl font-semibold tabular-nums text-ink">{formatNaira(offer.amountMinor)}</p>
       <p className="text-xs text-muted">Item price only — delivery is added at checkout.</p>
       {offer.note && <p className="mt-1 text-sm">“{offer.note}”</p>}
       <p className="mt-2 text-sm">

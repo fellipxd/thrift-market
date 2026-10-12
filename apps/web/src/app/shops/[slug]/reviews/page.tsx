@@ -41,7 +41,7 @@ export default async function ShopReviewsRoute({ params, searchParams }: { param
         <div className="flex flex-wrap items-center gap-3">
           {s.averages.overall !== null ? (
             <>
-              <span className="font-serif text-4xl">{s.averages.overall.toFixed(1)}</span>
+              <span className="text-4xl font-semibold tabular-nums">{s.averages.overall.toFixed(1)}</span>
               <Stars value={s.averages.overall} label="Average rating" />
             </>
           ) : (

@@ -36,7 +36,7 @@ export default async function SellHome() {
   if (!overview) {
     return (
       <div className="max-w-2xl">
-        <PageHeader eyebrow="Sell" title="Turn your rail into a shop" description="One link for your whole catalogue, clear condition details, protected checkout and delivery tracking." />
+        <PageHeader eyebrow="Sell" title="Turn your rail into a shop" description="One link for your whole catalogue, clear condition details, a checkout that keeps the record, and delivery tracking." />
         <EmptyState title="You don’t have a shop yet" action={<ButtonLink href={routes.sell.onboarding}>Open a shop</ButtonLink>}>
           It takes a few minutes. You’ll add your shop details, where you deliver and a payout account.
         </EmptyState>

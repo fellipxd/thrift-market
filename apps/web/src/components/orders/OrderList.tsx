@@ -6,10 +6,10 @@ import { FulfilmentBadge, PaymentBadge } from './OrderStatusBadges';
 
 export function OrderList({ items, hrefFor, counterpartLabel }: { items: OrderListItem[]; hrefFor: (id: string) => string; counterpartLabel: string }) {
   return (
-    <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface">
+    <ul className="divide-y divide-line border-y border-ink">
       {items.map((o) => (
         <li key={o.id}>
-          <Link href={hrefFor(o.id)} className="flex gap-3 p-3 hover:bg-primary-soft/40">
+          <Link href={hrefFor(o.id)} className="flex gap-3 py-4 pr-1 hover:bg-sand/60">
             <div className="h-16 w-14 flex-none overflow-hidden rounded-md bg-sand">{o.photoUrl && <Photo src={o.photoUrl} alt="" className="h-full w-full" />}</div>
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-2">

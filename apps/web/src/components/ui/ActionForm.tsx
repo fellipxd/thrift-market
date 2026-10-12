@@ -57,7 +57,8 @@ export function ActionForm({
   return (
     <FieldErrorsContext.Provider value={fieldErrors}>
       <form ref={formRef} action={formAction} className={className} noValidate id={id}>
-        <div ref={alertRef} tabIndex={-1} className="outline-none" aria-live="polite">
+        {/* Spans the full row in grid forms and takes no cell while empty (the Alert announces itself via its role). */}
+        <div ref={alertRef} tabIndex={-1} className="col-span-full outline-none empty:hidden" aria-live="polite">
           {state.status === 'error' && (
             <Alert tone="error" className="mb-4">
               {state.message}

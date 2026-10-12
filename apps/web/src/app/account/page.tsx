@@ -37,10 +37,10 @@ export default async function AccountPage() {
         </Card>
       )}
       <div className="mb-4 flex gap-2">{account.contactVerified ? <Badge tone="success">Contact verified</Badge> : <Badge tone="warning">Contact not verified</Badge>}</div>
-      <ul className="grid gap-3 sm:grid-cols-2">
+      <ul className="grid border-t border-ink sm:grid-cols-2 sm:gap-x-8">
         {links.map((l) => (
           <li key={l.href}>
-            <Link href={l.href} className="block rounded-[var(--radius-card)] border border-line bg-surface p-4 hover:border-primary">
+            <Link href={l.href} className="group block border-b border-line py-4 hover:bg-sand/60">
               <span className="font-semibold text-ink">{l.label}</span>
               <span className="mt-0.5 block text-sm text-muted">{l.hint}</span>
             </Link>

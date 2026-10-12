@@ -35,7 +35,7 @@ export default async function AdminHome() {
         {o.counts.map((c) => (
           <li key={c.key}>
             <Link href={c.href} className={cx('block rounded-[var(--radius-card)] border p-4 hover:border-primary', c.urgent ? 'border-error/40 bg-error-soft' : 'border-line bg-surface')}>
-              <span className="block font-serif text-3xl">{c.count}</span>
+              <span className="block text-3xl font-semibold tabular-nums">{c.count}</span>
               <span className="text-sm">{c.label}</span>
             </Link>
           </li>

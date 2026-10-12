@@ -74,7 +74,7 @@ export default async function SellerOffersPage({ searchParams }: { searchParams:
                       <p className="text-muted">Asking {i.listing.priceMinor ? formatNaira(i.listing.priceMinor) : '—'} · {i.buyerName}</p>
                       {i.latest && (
                         <p className="mt-1">
-                          <span className="font-serif text-xl text-ink">{formatNaira(i.latest.amountMinor)}</span>{' '}
+                          <span className="text-xl font-semibold tabular-nums text-ink">{formatNaira(i.latest.amountMinor)}</span>{' '}
                           <span className="text-muted">{i.latest.fromParty === 'buyer' ? 'from buyer' : 'your counter'}</span>
                         </p>
                       )}

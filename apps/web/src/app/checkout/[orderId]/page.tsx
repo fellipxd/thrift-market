@@ -37,7 +37,7 @@ export default async function PendingPaymentPage({ params }: { params: Promise<{
         <dl className="space-y-1 text-sm">
           <div className="flex justify-between"><dt className="text-muted">Item{o.items.length > 1 || (item && item.quantity > 1) ? 's' : ''}</dt><dd>{formatNaira(o.totals.itemsTotalMinor)}</dd></div>
           <div className="flex justify-between"><dt className="text-muted">Delivery · {o.delivery.methodLabel}</dt><dd>{o.totals.shippingMinor === 0 ? 'Free' : formatNaira(o.totals.shippingMinor)}</dd></div>
-          {o.totals.buyerFeeMinor > 0 && <div className="flex justify-between"><dt className="text-muted">Buyer protection fee</dt><dd>{formatNaira(o.totals.buyerFeeMinor)}</dd></div>}
+          {o.totals.buyerFeeMinor > 0 && <div className="flex justify-between"><dt className="text-muted">Buyer fee</dt><dd>{formatNaira(o.totals.buyerFeeMinor)}</dd></div>}
           <div className="flex justify-between border-t border-line pt-2 text-base font-semibold"><dt>Total</dt><dd>{formatNaira(o.totals.totalMinor)}</dd></div>
         </dl>
         {o.reservation && holdActive ? (

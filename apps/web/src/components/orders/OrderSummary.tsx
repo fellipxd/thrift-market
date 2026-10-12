@@ -46,7 +46,7 @@ export function OrderTotals({ order }: { order: OrderDetail }) {
       <dl className="space-y-1 text-sm">
         <div className="flex justify-between"><dt className="text-muted">Items</dt><dd>{formatNaira(t.itemsTotalMinor)}</dd></div>
         <div className="flex justify-between"><dt className="text-muted">Delivery</dt><dd>{t.shippingMinor === 0 ? 'Free' : formatNaira(t.shippingMinor)}</dd></div>
-        {t.buyerFeeMinor > 0 && <div className="flex justify-between"><dt className="text-muted">Buyer protection fee</dt><dd>{formatNaira(t.buyerFeeMinor)}</dd></div>}
+        {t.buyerFeeMinor > 0 && <div className="flex justify-between"><dt className="text-muted">Buyer fee</dt><dd>{formatNaira(t.buyerFeeMinor)}</dd></div>}
         <div className="flex justify-between border-t border-line pt-2 font-semibold"><dt>Total paid by buyer</dt><dd>{formatNaira(t.totalMinor)}</dd></div>
         {order.viewer === 'seller' && (
           <div className="flex justify-between text-muted"><dt>Platform commission</dt><dd>{t.commissionMinor === 0 ? 'None' : `− ${formatNaira(t.commissionMinor)}`}</dd></div>

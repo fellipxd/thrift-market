@@ -98,7 +98,7 @@ export function AuctionLive({
           <span className="text-xs text-muted">{v.bidCount} bid{v.bidCount === 1 ? '' : 's'}</span>
         </div>
         <p className="text-sm text-muted">{v.currentBidMinor ? 'Current bid' : 'Opening price'}</p>
-        <p className="font-serif text-4xl text-ink" data-testid="current-bid">
+        <p className="text-4xl font-semibold tabular-nums text-ink" data-testid="current-bid">
           {formatNaira(v.currentBidMinor ?? v.openingPriceMinor)}
         </p>
         {v.phase !== 'ended' && (

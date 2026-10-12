@@ -95,7 +95,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
             <ButtonLink href={routes.orderConversation(order.id)} variant="secondary" className="w-full">Message the seller</ButtonLink>
           )}
           <p className="text-xs text-muted">
-            Your payment is held by Thrift Market and only released to the seller after delivery is confirmed. Need help?{' '}
+            The seller’s payout waits until delivery is confirmed and no problem is open. Need help?{' '}
             <Link href="/help" className="underline">Contact support</Link>.
           </p>
         </div>
