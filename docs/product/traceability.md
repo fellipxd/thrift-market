@@ -48,7 +48,8 @@ pending for every row (stage 3 gate).
   audit with real users, 200% text enlargement review, licensed brand fonts (D01).
 - **Same-seller multi-item checkout group (doc 06):** checkout currently covers one listing (with quantity); an all-or-none checkout
   group for several items from one seller is pending.
-- **Lock order (doc 06):** the build locks auction → offer thread → stock consistently; doc 06 specifies stock before auction. To be
-  aligned (or the difference recorded as an ADR) in the integration/hardening task.
-- **Auction custody (doc 06):** stock custody from auction scheduling to winner obligation to be verified against the contract.
-
+- **Lock order (doc 06): decided — ADR-0008.** The build keeps its consistent auction → offer thread → stock order;
+  deadlock freedom comes from consistency, and every path that touches both takes the auction first.
+- **Auction custody (doc 06): verified and tightened.** Enforced through fixed sale mode, guarded seller edits and
+  winner allocation in the closing transaction. Found and fixed: moderation removal or shop suspension left auctions
+  running (the closing job then failed to allocate and stuck); bids didn't check the shop's status. See ADR-0008.

@@ -3,6 +3,9 @@ import { withTransaction } from '@thrift/database';
 import { isDomainError } from '@thrift/domain';
 import {
   acceptSecondChance,
+  actOnReport,
+  pauseShop,
+  submitReport,
   cancelAuction,
   createAuction,
   declineSecondChance,
@@ -387,3 +390,48 @@ describe('auction view', () => {
     expect(JSON.stringify(guest)).not.toContain(alice.id);
   });
 });
+
+describe('auction custody under moderation (doc 06)', () => {
+  it('removing a listing stops its live auction first: bidders are told, nothing is charged and nothing gets stuck', async () => {
+    const { listing, auctionId } = await liveAuction();
+    const b = await bidder('Moderated bidder');
+    await bid(b, auctionId, 5_000);
+    const reporter = await createUser({ name: 'Reporter' });
+    const ts = await createUser({ roles: ['trust_safety'] });
+    const { reportId } = await submitReport(reporter.ctx, { kind: 'listing', id: listing.id, reason: 'counterfeit', details: 'Fake logo.' });
+    await actOnReport(ts.ctx, { reportId, action: 'remove_listing', reason: 'Counterfeit branding confirmed by photos' });
+
+    const a = await auctionRow(auctionId);
+    expect(a.status).toBe('cancelled');
+    expect(a.cancelled_reason).toMatch(/^moderation: /);
+    expect((await pool.query('SELECT status FROM listings WHERE id = $1', [listing.id])).rows[0].status).toBe('removed');
+    expect(await stock(listing.id)).toMatchObject({ quantity_available: 0, quantity_reserved: 0 });
+    const note = await pool.query(`SELECT body FROM notifications WHERE user_id = $1 AND kind = 'auction_cancelled'`, [b.id]);
+    expect(note.rows[0].body).toContain('never payments');
+    // No further bids, and the closing job has nothing left to allocate (no stuck auction).
+    await expect(bid(b, auctionId, 6_000)).rejects.toMatchObject({ code: 'EXPIRED' });
+    const afterEnd = new Date(Date.now() + 2 * HOUR);
+    expect(await finalizeAuction(systemCtx(() => afterEnd), auctionId)).toBe('already_final');
+  });
+
+  it('suspending a shop stops its scheduled and live auctions; a paused or suspended shop takes no bids', async () => {
+    const shop = await createShop();
+    const live = await liveAuction({ shop });
+    const b = await bidder('Shop bidder');
+    await bid(b, live.auctionId, 5_000);
+    const reporter = await createUser({ name: 'Shop reporter' });
+    const ts = await createUser({ roles: ['trust_safety'] });
+    const { reportId } = await submitReport(reporter.ctx, { kind: 'shop', id: shop.id, reason: 'fraud', details: 'Asked me to pay by transfer.' });
+    await actOnReport(ts.ctx, { reportId, action: 'suspend_shop', reason: 'Repeated off-platform payment requests' });
+    expect((await auctionRow(live.auctionId)).status).toBe('cancelled');
+    expect((await pool.query('SELECT status FROM listings WHERE id = $1', [live.listing.id])).rows[0].status).toBe('draft');
+    await expect(bid(b, live.auctionId, 6_000)).rejects.toMatchObject({ code: 'INVALID_STATE' });
+
+    // A paused shop can't leave an auction running, and bids are refused if a shop isn't active.
+    const other = await liveAuction();
+    await expect(pauseShop(other.seller.ctx, {})).rejects.toMatchObject({ code: 'INVALID_STATE' });
+    await pool.query(`UPDATE shops SET status = 'paused' WHERE id = $1`, [other.listing.shop.id]);
+    await expect(bid(await bidder('Paused bidder'), other.auctionId, 5_000)).rejects.toMatchObject({ code: 'INVALID_STATE' });
+  });
+});
+

@@ -7,7 +7,8 @@ Status: Accepted, 2026-10-12.
   `total = available + reserved + sold + withdrawn` and all quantities ≥ 0.
 - Every allocation path calls `application/src/inventory/authority.ts` (`reserveStock`, `releaseReservation`,
   `convertReservation`, `withdrawStock`, `restock`) which locks the stock row `FOR UPDATE`.
-- Global lock order: auctions → offer_threads → inventory_stock → reservations → orders → payment_attempts → payouts.
+- Global lock order: auctions → offer_threads → inventory_stock → reservations → orders → payment_attempts → payouts
+  (kept deliberately where phase-0 doc 06 proposes stock first — see ADR-0008).
 - Short transactions with `lock_timeout`; provider calls happen after commit; results are applied in a new
   transaction with status guards.
 - Reservation timers never free stock while a payment may have succeeded: unresolved attempts are verified with the

@@ -1,6 +1,6 @@
 import { cancelAuctionInput, createAuctionInput, relistAuctionInput } from '@thrift/contracts';
 import { assertPublishable, DEFAULT_AUCTION_RULES, DomainError, validateAuctionSchedule } from '@thrift/domain';
-import { maybeOne, one, withTransaction, type Queryable } from '@thrift/database';
+import { many, maybeOne, one, withTransaction, type Queryable } from '@thrift/database';
 import { recordAudit } from '../core/audit';
 import { requireUser } from '../core/authz';
 import type { AppContext } from '../core/context';
@@ -8,7 +8,8 @@ import { enqueue } from '../core/outbox';
 import { parseInput } from '../core/validation';
 import { loadOwnListing, loadSchemaFor, publishCandidate, writeVersionIfChanged } from '../catalogue/internal';
 import { initialiseStock, lockStock, restock, withdrawStock } from '../inventory/authority';
-import { addAuctionEvent, assertAuctionTransition, isShopMember, latestAuctionPolicy, lockAuction, OPEN_AUCTION_STATUSES, type AuctionRow } from './shared';
+import { notifyUser } from '../notifications/notify';
+import { addAuctionEvent, assertAuctionTransition, auctionLinks, isShopMember, latestAuctionPolicy, listingTitle, lockAuction, OPEN_AUCTION_STATUSES, type AuctionRow } from './shared';
 
 /** True when the listing's current auction has at least one bid (terms and buyer-visible details are then frozen). */
 export async function auctionHasBids(db: Queryable, listingId: string): Promise<boolean> {
@@ -192,4 +193,50 @@ export async function relistAuction(ctx: AppContext, raw: unknown): Promise<{ au
     });
     return { auctionId: auction.id, status: auction.status, startsAt: new Date(auction.starts_at).toISOString(), endsAt: new Date(auction.ends_at).toISOString() };
   });
+}
+
+/**
+ * Staff moderation: stops the open (draft, scheduled or live) auctions of a removed listing or a suspended shop.
+ * Auctions are locked before stock (lock order). Bids are never payments, so nobody is charged; bidders are told.
+ * The unit is withdrawn and the listing returns to draft so it can't sell. A winner who was already allocated keeps
+ * their payment window — like paid orders, existing obligations are handled by support, not erased.
+ */
+export async function stopOpenAuctions(
+  tx: Queryable,
+  args: { listingId?: string; shopId?: string; reason: string; actorUserId: string; now: Date },
+): Promise<number> {
+  if (!args.listingId && !args.shopId) return 0;
+  const open = await many<{ id: string }>(
+    tx,
+    `SELECT id FROM auctions WHERE status IN ('draft','scheduled','live') AND (listing_id = $1 OR shop_id = $2) ORDER BY id`,
+    [args.listingId ?? null, args.shopId ?? null],
+  );
+  let stopped = 0;
+  for (const { id } of open) {
+    const a = await lockAuction(tx, id);
+    if (!['draft', 'scheduled', 'live'].includes(a.status)) continue;
+    assertAuctionTransition(a.status, 'cancelled');
+    await tx.query(`UPDATE auctions SET status = 'cancelled', cancelled_reason = $2, updated_at = now() WHERE id = $1`, [a.id, `moderation: ${args.reason}`]);
+    const stock = await maybeOne<{ quantity_available: number }>(tx, 'SELECT quantity_available FROM inventory_stock WHERE listing_id = $1', [a.listing_id]);
+    if (stock && stock.quantity_available > 0) {
+      await withdrawStock(tx, { listingId: a.listing_id, quantity: stock.quantity_available, reason: 'auction_stopped_by_moderation', actorUserId: args.actorUserId });
+    }
+    await tx.query(`UPDATE listings SET status = 'draft', updated_at = now() WHERE id = $1 AND status <> 'removed'`, [a.listing_id]);
+    await addAuctionEvent(tx, { auctionId: a.id, seq: a.seq, kind: 'cancelled', at: args.now, data: { reason: 'moderation' } });
+    const title = await listingTitle(tx, a.listing_id);
+    const bidders = await many<{ bidder_user_id: string }>(tx, 'SELECT DISTINCT bidder_user_id FROM bids WHERE auction_id = $1', [a.id]);
+    for (const b of bidders) {
+      await notifyUser(tx, {
+        userId: b.bidder_user_id,
+        topic: 'transactional',
+        kind: 'auction_cancelled',
+        title: `The auction for “${title}” was cancelled`,
+        body: 'Our trust & safety team stopped this auction. You haven’t been charged — bids are never payments.',
+        link: auctionLinks.auction(a.id),
+        dedupeKey: `auction-cancelled:${a.id}:${b.bidder_user_id}`,
+      });
+    }
+    stopped++;
+  }
+  return stopped;
 }

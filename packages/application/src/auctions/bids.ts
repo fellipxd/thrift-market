@@ -43,6 +43,8 @@ export async function placeBid(ctx: AppContext, raw: unknown): Promise<BidResult
   const pre = await readAuction(ctx.pool, input.auctionId);
   if (!pre || pre.status === 'draft') throw new DomainError('NOT_FOUND', 'Auction not found.');
   if (await isShopMember(ctx.pool, pre.shop_id, user.userId)) throw new DomainError('FORBIDDEN', 'Sellers and their shop staff can’t bid on their own auctions.');
+  const shop = await one<{ status: string }>(ctx.pool, 'SELECT status FROM shops WHERE id = $1', [pre.shop_id]);
+  if (shop.status !== 'active') throw new DomainError('INVALID_STATE', 'This shop isn’t taking bids right now.');
   const account = await one<{ status: string }>(ctx.pool, 'SELECT status FROM users WHERE id = $1', [user.userId]);
   if (account.status !== 'active') throw new DomainError('FORBIDDEN', 'Your account can’t bid right now. Contact support.');
   const quote = await deliveryQuoteFor(ctx, user.userId, pre.listing_id, input.addressId);

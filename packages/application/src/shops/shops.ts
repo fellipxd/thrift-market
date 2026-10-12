@@ -240,6 +240,11 @@ export async function pauseShop(ctx: AppContext, raw: unknown = {}): Promise<{ s
     if (shop.status !== 'active') {
       throw new DomainError('INVALID_STATE', shop.status === 'draft' ? 'Your shop is not open yet, so there is nothing to pause.' : 'This shop is suspended. Contact support.');
     }
+    // A paused shop takes no new sales, so it can't leave an auction running that would then pick a winner.
+    const running = await maybeOne(tx, `SELECT 1 AS ok FROM auctions WHERE shop_id = $1 AND status IN ('scheduled','live') LIMIT 1`, [shop.id]);
+    if (running) {
+      throw new DomainError('INVALID_STATE', 'You have a scheduled or live auction. Cancel it before the first bid, or wait for it to end, before pausing your shop.');
+    }
     await tx.query(`UPDATE shops SET status = 'paused', status_reason = $2, updated_at = now() WHERE id = $1`, [shop.id, input.note ?? 'Paused by the seller']);
     await recordAudit(tx, ctx, { action: 'shop.paused', targetKind: 'shop', targetId: shop.id, reason: input.note });
     return { shopId: shop.id, status: 'paused' as const };

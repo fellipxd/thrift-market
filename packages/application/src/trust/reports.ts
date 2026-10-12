@@ -8,6 +8,7 @@ import { enqueue } from '../core/outbox';
 import { enforceRateLimit } from '../core/rate-limit';
 import { parseInput } from '../core/validation';
 import { withdrawStock } from '../inventory/authority';
+import { stopOpenAuctions } from '../auctions/commands';
 import { notifyUser } from '../notifications/notify';
 import { applyReviewModeration } from './reviews';
 
@@ -186,6 +187,8 @@ export async function actOnReport(ctx: AppContext, raw: unknown): Promise<{ repo
     if (input.action !== 'dismiss' && !target) throw new DomainError('INVALID_STATE', 'The reported item no longer exists. Dismiss the report instead.');
     switch (input.action) {
       case 'remove_listing': {
+        // Lock order: auctions before stock. A running auction is stopped first so nothing can still sell the piece.
+        await stopOpenAuctions(tx, { listingId: report.target_id, reason: input.reason, actorUserId: staff.userId, now: ctx.now() });
         const stock = await maybeOne<{ quantity_available: number }>(tx, 'SELECT quantity_available FROM inventory_stock WHERE listing_id = $1', [report.target_id]);
         if (stock && stock.quantity_available > 0) {
           await withdrawStock(tx, { listingId: report.target_id, quantity: stock.quantity_available, reason: 'moderation_removed', actorUserId: staff.userId });
@@ -200,6 +203,8 @@ export async function actOnReport(ctx: AppContext, raw: unknown): Promise<{ repo
       case 'suspend_shop': {
         const shopId = target!.shopId!;
         await tx.query(`UPDATE shops SET status = 'suspended', updated_at = now() WHERE id = $1`, [shopId]);
+        // A suspended shop takes no new sales: its scheduled and live auctions stop (bidders are never charged).
+        await stopOpenAuctions(tx, { shopId, reason: input.reason, actorUserId: staff.userId, now: ctx.now() });
         await tx.query(`UPDATE ad_campaigns SET status = 'ended', ended_at = least(now(), ends_at), end_reason = 'shop_suspended', updated_at = now() WHERE shop_id = $1 AND status IN ('scheduled','active','paused')`, [shopId]);
         await record('shop', shopId, 'suspend_shop');
         const owner = await one<{ owner_user_id: string }>(tx, 'SELECT owner_user_id FROM shops WHERE id = $1', [shopId]);
