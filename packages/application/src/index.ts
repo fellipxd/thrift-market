@@ -37,7 +37,7 @@ export * from './catalogue/cards';
 // Feature modules (one line per module):
 export * from './shops';
 export * from './catalogue';
-export * from './growth/saves-follows';
+export * from './growth';
 export * from './discovery';
 export * from './addresses/addresses';
 export * from './ledger/ledger';
@@ -58,3 +58,4 @@ export * from './offers';
 export * from './auctions';
 export * from './fulfilment';
 export * from './disputes';
+export * from './trust';

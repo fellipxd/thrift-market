@@ -2,7 +2,9 @@ import { many, type Queryable } from '@thrift/database';
 
 export type NotificationTopic = 'transactional' | 'messages' | 'new_drops' | 'auctions' | 'promotions' | 'digest';
 
-const MARKETING: ReadonlySet<NotificationTopic> = new Set(['new_drops', 'promotions', 'digest']);
+export const NOTIFICATION_TOPICS: readonly NotificationTopic[] = ['transactional', 'messages', 'new_drops', 'auctions', 'promotions', 'digest'];
+export const MARKETING_TOPICS: readonly NotificationTopic[] = ['new_drops', 'promotions', 'digest'];
+const MARKETING: ReadonlySet<NotificationTopic> = new Set(MARKETING_TOPICS);
 
 export interface NotifyInput {
   userId: string;
@@ -13,11 +15,15 @@ export interface NotifyInput {
   link?: string | null;
   /** Per-user unique key; duplicate events never notify twice. */
   dedupeKey: string;
+  /** Appended to email/SMS bodies (e.g. a one-click unsubscribe link for marketing topics). */
+  footer?: string;
 }
 
 /**
  * Creates an in-app notification and queues external messages on channels the user opted into.
- * Transactional notices always appear in-app. Marketing topics require explicit opt-in per channel.
+ * Transactional notices always appear in-app. Other activity topics (messages, auctions the user takes part in)
+ * appear in-app unless turned off. Marketing topics (drops, promotions, digest) require explicit opt-in on every
+ * channel, including in-app. Email/SMS always require explicit opt-in.
  */
 export async function notifyUser(db: Queryable, n: NotifyInput): Promise<{ created: boolean }> {
   const prefs = await many<{ channel: 'in_app' | 'email' | 'sms'; opted_in: boolean }>(
@@ -26,7 +32,7 @@ export async function notifyUser(db: Queryable, n: NotifyInput): Promise<{ creat
     [n.userId, n.topic],
   );
   const optedIn = (channel: 'in_app' | 'email' | 'sms') => prefs.find((p) => p.channel === channel)?.opted_in ?? false;
-  const inApp = n.topic === 'transactional' || n.topic === 'messages' ? prefs.find((p) => p.channel === 'in_app')?.opted_in ?? true : optedIn('in_app');
+  const inApp = n.topic === 'transactional' ? true : MARKETING.has(n.topic) ? optedIn('in_app') : (prefs.find((p) => p.channel === 'in_app')?.opted_in ?? true);
   if (MARKETING.has(n.topic) && !inApp && !optedIn('email') && !optedIn('sms')) return { created: false };
   let created = false;
   if (inApp) {
@@ -50,7 +56,7 @@ export async function notifyUser(db: Queryable, n: NotifyInput): Promise<{ creat
     await db.query(
       `INSERT INTO outbound_messages (user_id, channel, destination, subject, body, kind, dedupe_key)
        VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (dedupe_key) DO NOTHING`,
-      [n.userId, channel, destination, n.title, `${n.title}\n\n${n.body ?? ''}`.trim(), n.kind, `${channel}:${n.userId}:${n.dedupeKey}`],
+      [n.userId, channel, destination, n.title, [n.title, n.body ?? '', n.footer ?? ''].filter(Boolean).join('\n\n'), n.kind, `${channel}:${n.userId}:${n.dedupeKey}`],
     );
   }
   return { created };

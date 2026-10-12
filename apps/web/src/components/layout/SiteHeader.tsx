@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
+import { NotificationBell } from './NotificationBell';
 import { inboxUnreadCount } from '@thrift/application';
 import { getCtx, getUser } from '@/server/session';
 
@@ -52,6 +53,7 @@ export async function SiteHeader() {
           <Link href={routes.sell.home} className="rounded-lg px-3 py-2 hover:bg-primary-soft">
             Sell
           </Link>
+          {user && <NotificationBell className="rounded-lg px-3 py-2 hover:bg-primary-soft" />}
           {user ? (
             <Link href={routes.account} className="ml-1 rounded-lg bg-primary px-3 py-2 text-white hover:bg-primary-hover">
               {user.displayName.split(' ')[0]}
@@ -64,9 +66,7 @@ export async function SiteHeader() {
         </nav>
         <div className="ml-auto md:hidden">
           {user ? (
-            <Link href={routes.notifications} className="rounded-lg px-2 py-2 text-sm font-medium text-primary">
-              Notifications
-            </Link>
+            <NotificationBell className="rounded-lg px-2 py-2 text-sm font-medium text-primary" />
           ) : (
             <Link href={routes.auth.signIn()} className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white">
               Sign in
