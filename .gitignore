@@ -14,3 +14,6 @@ apps/web/playwright-report/
 .DS_Store
 *.log
 .turbo/
+
+# Agent worktrees and local tool state
+.claude/worktrees/
