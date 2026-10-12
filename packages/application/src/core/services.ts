@@ -99,6 +99,9 @@ export function createServices(opts: ServiceOptions): Services {
   };
 }
 
+/** Development fallback for APP_SECRET; refused in production by createServices. */
+export const DEV_APP_SECRET = 'dev-only-insecure-secret-change-me-0123456789abcdef';
+
 /** Reads standard environment variables (used by web and worker entry points). */
 export function servicesFromEnv(overrides: Partial<ServiceOptions> = {}): Services {
   const env = (process.env.NODE_ENV === 'production' ? 'production' : process.env.NODE_ENV === 'test' ? 'test' : 'development') as AppConfig['env'];
@@ -107,7 +110,7 @@ export function servicesFromEnv(overrides: Partial<ServiceOptions> = {}): Servic
   return createServices({
     databaseUrl,
     baseUrl: process.env.APP_BASE_URL ?? 'http://localhost:3000',
-    appSecret: process.env.APP_SECRET ?? 'dev-only-insecure-secret-change-me-0123456789abcdef',
+    appSecret: process.env.APP_SECRET ?? DEV_APP_SECRET,
     env,
     paymentProvider: process.env.PAYMENT_PROVIDER ?? 'sandbox',
     paystackSecretKey: process.env.PAYSTACK_SECRET_KEY,

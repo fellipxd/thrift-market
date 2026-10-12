@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { signIn, signUpVerified } from './helpers';
+import { signIn, signInStaff, signUpVerified } from './helpers';
 
 // Each browser project buys a different unique piece from the same shop (PH Sole Republic, seller ebi).
 const PLAN = {
@@ -80,7 +80,7 @@ test.describe('trust and growth (slice G)', () => {
 
     const staff = await browser.newContext();
     const admin = await staff.newPage();
-    await signIn(admin, 'admin@demo.thrift.test', '/admin/reports');
+    await signInStaff(admin, 'admin@demo.thrift.test', '/admin/reports');
     const row = admin.getByRole('listitem').filter({ hasText: 'The photos look like a different garment.' }).first();
     await expect(row).toBeVisible();
     await row.getByLabel('Action').selectOption('dismiss');

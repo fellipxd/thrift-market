@@ -44,7 +44,7 @@ export async function register(ctx: AppContext, raw: unknown, meta: { userAgent?
       );
       await issueVerificationCode(tx, ctx, user.id, input.email ? 'email' : 'phone', (input.email ?? input.phone)!);
       const session = await createSession(tx, { userId: user.id, userAgent: meta.userAgent, ip: ctx.ip, now: ctx.now() });
-      await recordAudit(tx, { ...ctx, actor: { kind: 'user', userId: user.id, displayName: input.displayName, contactVerified: false, roles: [], sessionId: session.sessionId } }, {
+      await recordAudit(tx, { ...ctx, actor: { kind: 'user', userId: user.id, displayName: input.displayName, contactVerified: false, roles: [], sessionId: session.sessionId, mfaVerified: false } }, {
         action: 'account.registered',
         targetKind: 'user',
         targetId: user.id,

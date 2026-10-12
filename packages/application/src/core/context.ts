@@ -10,6 +10,8 @@ export interface UserActor {
   contactVerified: boolean;
   roles: StaffRole[];
   sessionId: string | null;
+  /** The session passed a second factor recently (required for staff tools). */
+  mfaVerified: boolean;
 }
 
 export type Actor = { kind: 'guest' } | UserActor | { kind: 'system'; name: string };

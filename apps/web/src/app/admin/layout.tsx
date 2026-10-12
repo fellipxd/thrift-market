@@ -1,11 +1,15 @@
 import { notFound } from 'next/navigation';
 import { WorkspaceShell } from '@/components/layout/WorkspaceShell';
 import { routes } from '@/lib/routes';
-import { requireUserPage } from '@/server/session';
+import { getUser } from '@/server/session';
 
-/** Staff-only console. Non-staff get a 404 (no hint that the console exists). Each page re-checks its own role. */
+/**
+ * Staff-only console shell. Every page guards itself with requireStaffPage (layouts and pages render in
+ * parallel), which sends signed-out or unconfirmed staff to sign-in / the two-step check with the path they asked for.
+ */
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const user = await requireUserPage(routes.admin.home);
+  const user = await getUser();
+  if (!user || !user.mfaVerified) return <>{children}</>;
   if (user.roles.length === 0) notFound();
   const items = [
     { href: routes.admin.home, label: 'Overview' },

@@ -9,14 +9,14 @@ import { TextField } from '@/components/ui/Field';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { cx } from '@/lib/format';
 import { routes, withQuery } from '@/lib/routes';
-import { getCtx, requireUserPage } from '@/server/session';
+import { getCtx, requireStaffPage } from '@/server/session';
 import { moderateReviewAction } from '../reports/actions';
 
 export const metadata = { title: 'Review moderation' };
 export const dynamic = 'force-dynamic';
 
 export default async function ReviewModerationPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
-  await requireUserPage(routes.admin.reviews);
+  await requireStaffPage(routes.admin.reviews);
   const { status = 'reported' } = await searchParams;
   let reviews;
   try {

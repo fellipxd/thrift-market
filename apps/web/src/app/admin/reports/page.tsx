@@ -9,7 +9,7 @@ import { SelectField, TextField } from '@/components/ui/Field';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { cx } from '@/lib/format';
 import { routes, withQuery } from '@/lib/routes';
-import { getCtx, requireUserPage } from '@/server/session';
+import { getCtx, requireStaffPage } from '@/server/session';
 import { actOnReportAction, reverseModerationActionAction } from './actions';
 
 export const metadata = { title: 'Reports' };
@@ -30,7 +30,7 @@ function targetLink(kind: string, id: string): string | null {
 }
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
-  await requireUserPage(routes.admin.reports);
+  await requireStaffPage(routes.admin.reports);
   const { status = 'open' } = await searchParams;
   const ctx = await getCtx();
   let reports, actions;

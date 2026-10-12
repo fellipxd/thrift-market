@@ -14,6 +14,8 @@ export * from './core/services';
 export * from './identity/passwords';
 export * from './identity/sessions';
 export * from './identity/accounts';
+export * from './identity/mfa';
+export { totp, verifyTotp, timeStep } from './identity/totp';
 
 // Inventory authority
 export * from './inventory/authority';
@@ -59,3 +61,4 @@ export * from './auctions';
 export * from './fulfilment';
 export * from './disputes';
 export * from './trust';
+export * from './admin';

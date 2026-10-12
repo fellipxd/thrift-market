@@ -8,14 +8,14 @@ import { CardSection, StatTile } from '@/components/ui/Card';
 import { TextField } from '@/components/ui/Field';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { routes } from '@/lib/routes';
-import { getCtx, requireUserPage } from '@/server/session';
+import { getCtx, requireStaffPage } from '@/server/session';
 import { decideRefundAction } from './actions';
 
 export const metadata = { title: 'Finance' };
 export const dynamic = 'force-dynamic';
 
 export default async function FinancePage() {
-  await requireUserPage(routes.admin.finance);
+  await requireStaffPage(routes.admin.finance);
   let f: FinanceOverview;
   try {
     f = await financeOverview(await getCtx());

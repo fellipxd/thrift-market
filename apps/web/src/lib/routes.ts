@@ -22,6 +22,8 @@ export const routes = {
   account: '/account',
   addresses: '/account/addresses',
   notificationSettings: '/account/notifications',
+  security: (next?: string) => withQuery('/account/security', { next }),
+  verifyMfa: (next?: string) => withQuery('/account/security/verify', { next }),
   orders: '/orders',
   order: (orderId: string) => `/orders/${orderId}`,
   checkout: {

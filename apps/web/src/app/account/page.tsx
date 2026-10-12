@@ -21,6 +21,7 @@ export default async function AccountPage() {
     { href: routes.notifications, label: 'Notifications', hint: 'Updates about your activity' },
     { href: routes.addresses, label: 'Delivery addresses', hint: 'Private until needed for an order' },
     { href: routes.notificationSettings, label: 'Notification preferences', hint: 'Choose drops, auctions and promotions' },
+    { href: routes.security(), label: 'Two-step verification', hint: user.roles.length > 0 ? 'Required for staff tools' : 'Extra protection for your account' },
     { href: routes.sell.home, label: 'Seller workspace', hint: 'Your shop, listings and payouts' },
   ];
   if (user.roles.length > 0) links.push({ href: routes.admin.home, label: 'Operations console', hint: `Staff: ${user.roles.join(', ')}` });

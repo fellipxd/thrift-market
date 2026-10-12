@@ -8,7 +8,7 @@ import { CardSection } from '@/components/ui/Card';
 import { CheckboxField, SelectField, TextField } from '@/components/ui/Field';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { routes, withQuery } from '@/lib/routes';
-import { getCtx, requireUserPage } from '@/server/session';
+import { getCtx, requireStaffPage } from '@/server/session';
 import { createCategoryAction, publishSchemaAction, updateCategoryAction } from './actions';
 
 export const metadata = { title: 'Categories' };
@@ -33,7 +33,7 @@ function Tree({ nodes }: { nodes: CategoryNode[] }) {
 }
 
 export default async function CategoriesPage({ searchParams }: { searchParams: Promise<{ id?: string }> }) {
-  const user = await requireUserPage(routes.admin.categories);
+  const user = await requireStaffPage(routes.admin.categories);
   if (!user.roles.includes('admin')) notFound();
   const { id } = await searchParams;
   const ctx = await getCtx();

@@ -5,6 +5,8 @@ import { randomToken } from '../core/ids';
 
 export const SESSION_COOKIE = 'tm_session';
 export const SESSION_TTL_DAYS = 30;
+/** Staff re-verify their second factor at least this often. */
+export const MFA_SESSION_HOURS = 12;
 
 export function hashSessionToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
@@ -34,9 +36,11 @@ export async function resolveSession(db: Queryable, token: string | null | undef
     email_verified_at: Date | null;
     phone_verified_at: Date | null;
     last_seen_at: Date;
+    mfa_verified: boolean;
   }>(
     db,
-    `SELECT s.id AS session_id, u.id AS user_id, u.display_name, u.email_verified_at, u.phone_verified_at, s.last_seen_at
+    `SELECT s.id AS session_id, u.id AS user_id, u.display_name, u.email_verified_at, u.phone_verified_at, s.last_seen_at,
+            (s.mfa_verified_at IS NOT NULL AND s.mfa_verified_at > $2::timestamptz - make_interval(hours => ${MFA_SESSION_HOURS}) AND u.mfa_enabled_at IS NOT NULL) AS mfa_verified
        FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > $2 AND u.status = 'active'`,
     [hashSessionToken(token), now],
@@ -53,6 +57,7 @@ export async function resolveSession(db: Queryable, token: string | null | undef
     contactVerified: Boolean(row.email_verified_at || row.phone_verified_at),
     roles: roles.map((r) => r.role),
     sessionId: row.session_id,
+    mfaVerified: row.mfa_verified,
   };
 }
 

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { signIn, signUpVerified } from './helpers';
+import { signIn, signInStaff, signUpVerified } from './helpers';
 
 /** A new buyer buys one of the identical tees with the platform courier and pays on the sandbox page. */
 async function buyTeeWithCourier(page: Page, name: string): Promise<string> {
@@ -66,7 +66,7 @@ test.describe('fulfilment and disputes (slice D)', () => {
   });
 
   test('staff see the dispute queue and deliveries needing review', async ({ page }) => {
-    await signIn(page, 'admin@demo.thrift.test', '/admin/disputes');
+    await signInStaff(page, 'admin@demo.thrift.test', '/admin/disputes');
     await expect(page.getByRole('heading', { name: 'Disputes', level: 1 })).toBeVisible();
     await expect(page.getByRole('heading', { name: /Deliveries needing review/ })).toBeVisible();
     await page.goto('/admin/disputes?status=all');

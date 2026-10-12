@@ -9,14 +9,14 @@ import { TextField } from '@/components/ui/Field';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { cx } from '@/lib/format';
 import { routes, withQuery } from '@/lib/routes';
-import { getCtx, requireUserPage } from '@/server/session';
+import { getCtx, requireStaffPage } from '@/server/session';
 import { staffVerifyDeliveryAction } from './actions';
 
 export const metadata = { title: 'Disputes' };
 export const dynamic = 'force-dynamic';
 
 export default async function DisputesQueuePage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
-  await requireUserPage(routes.admin.disputes);
+  await requireStaffPage(routes.admin.disputes);
   const { status = 'open' } = await searchParams;
   const ctx = await getCtx();
   let queue, deliveries;

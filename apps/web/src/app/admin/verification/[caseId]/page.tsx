@@ -8,14 +8,14 @@ import { CardSection } from '@/components/ui/Card';
 import { TextAreaField } from '@/components/ui/Field';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { routes } from '@/lib/routes';
-import { getCtx, requireUserPage } from '@/server/session';
+import { getCtx, requireStaffPage } from '@/server/session';
 import { decideVerificationAction } from '../actions';
 
 export const metadata = { title: 'Verification case' };
 
 export default async function VerificationCasePage({ params }: { params: Promise<{ caseId: string }> }) {
   const { caseId } = await params;
-  const user = await requireUserPage(`${routes.admin.verification}/${caseId}`);
+  const user = await requireStaffPage(`${routes.admin.verification}/${caseId}`);
   if (!hasRole(user, 'trust_safety', 'admin')) notFound();
   let c;
   try {

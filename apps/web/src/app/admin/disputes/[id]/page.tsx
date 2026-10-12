@@ -10,7 +10,7 @@ import { Card, CardSection } from '@/components/ui/Card';
 import { SelectField, TextAreaField, TextField } from '@/components/ui/Field';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { routes } from '@/lib/routes';
-import { getCtx, requireUserPage } from '@/server/session';
+import { getCtx, requireStaffPage } from '@/server/session';
 import { decideDisputeAction, staffConfirmReturnAction, staffNoteAction } from '../actions';
 
 export const metadata = { title: 'Dispute' };
@@ -18,7 +18,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function DisputeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await requireUserPage(routes.admin.dispute(id));
+  await requireStaffPage(routes.admin.dispute(id));
   let x: StaffDisputeDetail;
   try {
     x = await staffDisputeDetail(await getCtx(), id);

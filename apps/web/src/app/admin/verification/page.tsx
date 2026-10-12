@@ -7,12 +7,12 @@ import { CardSection } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { routes } from '@/lib/routes';
-import { getCtx, requireUserPage } from '@/server/session';
+import { getCtx, requireStaffPage } from '@/server/session';
 
 export const metadata = { title: 'Seller verification' };
 
 export default async function VerificationQueuePage() {
-  const user = await requireUserPage(routes.admin.verification);
+  const user = await requireStaffPage(routes.admin.verification);
   if (!hasRole(user, 'trust_safety', 'admin')) notFound();
   const q = await listVerificationQueue(await getCtx());
   return (

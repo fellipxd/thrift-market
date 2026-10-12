@@ -1,7 +1,7 @@
 import 'server-only';
 import { cache } from 'react';
 import { cookies, headers } from 'next/headers';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { resolveSession, SESSION_COOKIE, type Actor, type AppContext, type UserActor } from '@thrift/application';
 import { routes } from '@/lib/routes';
 import { services } from './services';
@@ -43,6 +43,17 @@ export async function requireUserPage(nextPath: string): Promise<UserActor> {
 export async function requireVerifiedPage(nextPath: string): Promise<UserActor> {
   const user = await requireUserPage(nextPath);
   if (!user.contactVerified) redirect(routes.auth.verify(nextPath));
+  return user;
+}
+
+/**
+ * For staff console pages (each page checks for itself — layouts and pages render in parallel): non-staff get a
+ * 404 with no hint that the console exists; staff without a recent second factor on this session confirm it first.
+ */
+export async function requireStaffPage(nextPath: string): Promise<UserActor> {
+  const user = await requireUserPage(nextPath);
+  if (user.roles.length === 0) notFound();
+  if (!user.mfaVerified) redirect(routes.verifyMfa(nextPath));
   return user;
 }
 

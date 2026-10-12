@@ -3,6 +3,7 @@ import { processImage } from '@thrift/providers';
 import { one, type Pool } from '@thrift/database';
 import type { ObjectStorage } from '@thrift/providers';
 import { hashPassword } from '../identity/passwords';
+import { encryptSecret } from '../identity/totp';
 import { illustration, type IllustrationShape } from './illustrations';
 
 /**
@@ -10,6 +11,11 @@ import { illustration, type IllustrationShape } from './illustrations';
  * Credentials (development only): password "thrift-demo-pass" for every demo account.
  */
 export const DEMO_PASSWORD = 'thrift-demo-pass';
+/**
+ * Development only: demo staff accounts are pre-enrolled in two-step verification with this published secret so
+ * local runs and E2E tests can sign in as staff (add it to any authenticator app). Never used outside dev/test.
+ */
+export const DEMO_MFA_SECRET = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
 
 export const DEMO_ACCOUNTS = {
   admin: 'admin@demo.thrift.test',
@@ -167,7 +173,7 @@ async function storeImage(pool: Pool, storage: ObjectStorage, ownerId: string, b
   return { id, key };
 }
 
-export async function seedDemo(pool: Pool, storage: ObjectStorage, categories: Map<string, { categoryId: string; schemaVersionId: string }>, log: (m: string) => void): Promise<void> {
+export async function seedDemo(pool: Pool, storage: ObjectStorage, categories: Map<string, { categoryId: string; schemaVersionId: string }>, log: (m: string) => void, opts: { appSecret?: string } = {}): Promise<void> {
   const existing = await pool.query(`SELECT 1 FROM shops WHERE slug = 'abuja-wardrobe'`);
   if (existing.rowCount) {
     log('demo data already present; skipping');
@@ -179,6 +185,10 @@ export async function seedDemo(pool: Pool, storage: ObjectStorage, categories: M
   const supportId = await ensureUser(pool, DEMO_ACCOUNTS.support, 'Sade Support (demo)', pw);
   await ensureUser(pool, DEMO_ACCOUNTS.buyer, 'Bola Buyer (demo)', pw);
   await ensureUser(pool, DEMO_ACCOUNTS.buyer2, 'Chidi Buyer (demo)', pw);
+  if (opts.appSecret && process.env.NODE_ENV !== 'production') {
+    const encrypted = encryptSecret(opts.appSecret, DEMO_MFA_SECRET);
+    await pool.query(`UPDATE users SET mfa_secret = $2, mfa_enabled_at = now() WHERE id = ANY($1::uuid[])`, [[adminId, financeId, supportId], encrypted]);
+  }
   for (const [uid, roles] of [
     [adminId, ['admin', 'trust_safety']],
     [financeId, ['finance']],

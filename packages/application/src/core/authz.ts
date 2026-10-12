@@ -22,10 +22,14 @@ export function hasRole(actor: Actor, ...roles: StaffRole[]): boolean {
 }
 
 /** Staff permission check. `admin` does not implicitly include finance approvals (see four-eyes rules). */
+/** Staff-only use cases: the role is required AND the session must have passed MFA recently. */
 export function requireStaff(ctx: AppContext, ...roles: StaffRole[]): UserActor {
   const user = requireUser(ctx);
   if (!user.roles.some((r) => roles.includes(r))) {
     throw new DomainError('FORBIDDEN', 'You do not have permission to do this.');
+  }
+  if (!user.mfaVerified) {
+    throw new DomainError('FORBIDDEN', 'Confirm it’s you with your authenticator app to use staff tools.', { mfaRequired: true });
   }
   return user;
 }

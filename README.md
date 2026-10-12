@@ -18,6 +18,8 @@ pnpm dev:worker             # background worker (reservations, auctions, payouts
 ```
 
 Demo password for all demo accounts: `thrift-demo-pass` (e.g. `buyer@demo.thrift.test`, `amina@demo.thrift.test`,
-`admin@demo.thrift.test`).
+`admin@demo.thrift.test`). Staff tools ask for a two-step code: the demo staff accounts (admin@, finance@, support@)
+are enrolled with the development-only authenticator secret `JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP` — add it to any
+authenticator app. The seed never enrols it when `NODE_ENV=production`.
 
 See `AGENTS.md` for architecture rules and conventions, and `docs/` for product, design and decisions.

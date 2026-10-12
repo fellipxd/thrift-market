@@ -61,7 +61,7 @@ export interface TestUser {
 }
 
 /** Creates a user directly in the database. Verified by default. */
-export async function createUser(opts: { verified?: boolean; roles?: StaffRole[]; name?: string; now?: () => Date } = {}): Promise<TestUser> {
+export async function createUser(opts: { verified?: boolean; roles?: StaffRole[]; name?: string; now?: () => Date; mfaVerified?: boolean } = {}): Promise<TestUser> {
   const pool = testServices().pool;
   passwordHashCache ??= await hashPassword('correct-horse-battery');
   const email = `user_${uniq()}@example.test`;
@@ -81,6 +81,8 @@ export async function createUser(opts: { verified?: boolean; roles?: StaffRole[]
     contactVerified: verified,
     roles: opts.roles ?? [],
     sessionId: null,
+    // Staff fixtures act as if their session passed MFA unless a test says otherwise.
+    mfaVerified: opts.mfaVerified ?? (opts.roles ?? []).length > 0,
   };
   return { id: u.id, actor, ctx: ctxFor(actor, opts.now), email };
 }

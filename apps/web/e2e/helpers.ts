@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import { createHmac } from 'node:crypto';
 
 export const DEMO_PASSWORD = 'thrift-demo-pass';
 
@@ -34,4 +35,58 @@ export async function signUpVerified(page: Page, name: string): Promise<string> 
   await page.getByRole('button', { name: 'Verify' }).click();
   await expect(page).not.toHaveURL(/verify/);
   return email;
+}
+
+/** Dev-only two-step secret the demo seed enrols for demo staff (never used outside local/E2E databases). */
+export const DEMO_STAFF_MFA_SECRET = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
+
+function base32Decode(input: string): Buffer {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = 0;
+  let value = 0;
+  const out: number[] = [];
+  for (const ch of input.replace(/=+$/, '').toUpperCase()) {
+    value = (value << 5) | alphabet.indexOf(ch);
+    bits += 5;
+    if (bits >= 8) {
+      out.push((value >>> (bits - 8)) & 0xff);
+      bits -= 8;
+    }
+  }
+  return Buffer.from(out);
+}
+
+/** RFC 6238 code (SHA-1, 30-second steps, 6 digits) for a step number. */
+export function totpForStep(secret: string, step: number): string {
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(step));
+  const mac = createHmac('sha1', base32Decode(secret)).update(counter).digest();
+  const offset = mac[mac.length - 1]! & 0x0f;
+  const bin = ((mac[offset]! & 0x7f) << 24) | (mac[offset + 1]! << 16) | (mac[offset + 2]! << 8) | mac[offset + 3]!;
+  return String(bin % 1_000_000).padStart(6, '0');
+}
+
+/**
+ * Signs a demo staff member in and completes the two-step check. Codes are single use per step, so when this
+ * step's (and the next step's) code has already been spent by an earlier sign-in, wait for the next step.
+ */
+export async function signInStaff(page: Page, email: string, next = '/admin'): Promise<void> {
+  await signIn(page, email, next);
+  // A fresh session always needs the second factor; the redirect to the check can land after the first navigation.
+  await page.waitForURL(/\/account\/security\/verify/, { timeout: 15_000 });
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const step = Math.floor(Date.now() / 30_000) + (attempt % 2);
+    await page.getByLabel('Code').fill(totpForStep(DEMO_STAFF_MFA_SECRET, step));
+    const response = page.waitForResponse((r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/account/security/verify');
+    await page.getByRole('button', { name: 'Verify' }).click();
+    await response;
+    try {
+      await page.waitForURL((u) => !u.pathname.startsWith('/account/security/verify'), { timeout: 10_000 });
+      return;
+    } catch {
+      // Code already spent by an earlier sign-in this step: try the next step's code, then wait for a fresh one.
+    }
+    if (attempt % 2 === 1) await page.waitForTimeout(30_000 - (Date.now() % 30_000) + 500);
+  }
+  throw new Error('Could not complete the staff two-step check');
 }
