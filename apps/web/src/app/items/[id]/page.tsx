@@ -88,12 +88,12 @@ export default async function ItemPage({ params, searchParams }: Params) {
               {item.availability === 'paused' && <Badge>Shop paused</Badge>}
               {item.availability === 'draft' && <Badge>Draft — only you can see this</Badge>}
             </div>
-            <h1 className="text-2xl font-bold leading-tight text-ink sm:text-3xl">{item.title}</h1>
-            {item.priceMinor !== null && <p className="mt-2 text-3xl font-bold text-primary">{formatNaira(item.priceMinor)}</p>}
+            <h1 className="display text-[2.25rem] text-ink sm:text-5xl">{item.title}</h1>
+            {item.priceMinor !== null && <p className="mt-4 text-[1.75rem] font-semibold tabular-nums text-ink">{formatNaira(item.priceMinor)}</p>}
             {item.saleMode === 'auction' && item.auction && (
               <p className="mt-2 text-lg">
                 <span className="text-muted">{item.auction.currentBidMinor ? 'Current bid ' : 'Opening price '}</span>
-                <strong className="text-primary">{formatNaira(item.auction.currentBidMinor ?? item.auction.openingPriceMinor)}</strong>
+                <strong className="tabular-nums text-ink">{formatNaira(item.auction.currentBidMinor ?? item.auction.openingPriceMinor)}</strong>
               </p>
             )}
             <p className="mt-2 text-muted">
@@ -110,7 +110,7 @@ export default async function ItemPage({ params, searchParams }: Params) {
 
           {item.condition && (
             <Card className="p-4">
-              <h2 className="font-semibold">{item.conditionLabel}</h2>
+              <h2 className="font-serif text-xl">{item.conditionLabel}</h2>
               <p className="text-sm text-muted">{item.conditionSummary}</p>
               {item.flawsDeclaration === 'none_known' && <p className="mt-2 text-sm">The seller confirms there are no known flaws.</p>}
               {item.flaws.length > 0 && (
@@ -185,7 +185,7 @@ export default async function ItemPage({ params, searchParams }: Params) {
           </div>
 
           <Card className="p-4">
-            <h2 className="font-semibold">Delivery to {destination.chosen ? stateLabel(destination.state) : `${stateLabel(destination.state)} (seller’s state)`}</h2>
+            <h2 className="font-serif text-xl">Delivery to {destination.chosen ? stateLabel(destination.state) : `${stateLabel(destination.state)} (seller’s state)`}</h2>
             {options.length === 0 ? (
               <p className="mt-1 text-sm text-error">This piece can’t currently be delivered to {stateLabel(destination.state)}. Try another state below.</p>
             ) : (
@@ -235,7 +235,7 @@ export default async function ItemPage({ params, searchParams }: Params) {
 
           {(item.description || item.measurements.length > 0 || item.attributes.length > 0 || item.brand || item.colour || item.material) && (
             <section aria-labelledby="details-h" className="space-y-3">
-              <h2 id="details-h" className="text-lg font-semibold">Details</h2>
+              <h2 id="details-h" className="font-serif text-2xl">Details</h2>
               {item.description && <p className="whitespace-pre-line text-[15px] leading-7">{item.description}</p>}
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                 {item.brand && (<><dt className="text-muted">Brand</dt><dd>{item.brand}</dd></>)}

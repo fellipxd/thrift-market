@@ -13,7 +13,7 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
   const { cursor } = await searchParams;
   const res = await savedItems(await getCtx(), { cursor });
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6">
+    <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-8 xl:px-12">
       <PageHeader title="Saved" description="Pieces you’re keeping an eye on. Saving doesn’t reserve an item." />
       {res.available.length === 0 && res.unavailable.length === 0 ? (
         <EmptyState title="Nothing saved yet" action={<ButtonLink href={routes.search()}>Start browsing</ButtonLink>}>
@@ -29,7 +29,7 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
           )}
           {res.unavailable.length > 0 && (
             <section className="mt-12" aria-labelledby="gone-h">
-              <h2 id="gone-h" className="mb-4 text-lg font-semibold text-muted">No longer available ({res.unavailableCount})</h2>
+              <h2 id="gone-h" className="mb-4 font-serif text-2xl text-muted">No longer available ({res.unavailableCount})</h2>
               <ul className="grid grid-cols-2 gap-3 opacity-80 sm:grid-cols-3 lg:grid-cols-5">
                 {res.unavailable.map((i) => (
                   <li key={i.id} className="rounded-[var(--radius-card)] border border-line bg-surface p-3 text-sm">

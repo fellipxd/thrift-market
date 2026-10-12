@@ -76,7 +76,7 @@ export default async function PromotionsPage({ searchParams }: { searchParams: P
                 <p className="text-sm text-muted">
                   {p.placementLabel} · {p.durationDays} days · {p.targetKind === 'listing' ? 'one item' : 'your whole shop'}
                 </p>
-                <p className="font-serif text-2xl">{formatNaira(p.priceMinor)}</p>
+                <p className="text-2xl font-semibold tabular-nums">{formatNaira(p.priceMinor)}</p>
                 <ActionForm action={bookPromotionAction} refreshOnSuccess={false} className="mt-auto space-y-2">
                   <input type="hidden" name="packageId" value={p.id} />
                   {p.targetKind === 'listing' &&

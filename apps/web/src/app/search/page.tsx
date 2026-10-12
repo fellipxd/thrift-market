@@ -165,10 +165,10 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   );
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6">
+    <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-8 xl:px-12">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{f?.q ? `Results for “${f.q}”` : f?.category ? f.category.name : 'Browse everything'}</h1>
+          <h1 className="display text-[2.25rem] text-ink md:text-5xl">{f?.q ? `Results for “${f.q}”` : f?.category ? f.category.name : 'Browse everything'}</h1>
           {result?.total && (
             <p className="text-sm text-muted" aria-live="polite">
               {result.total.capped ? `${result.total.count}+` : result.total.count} {result.total.count === 1 ? 'piece' : 'pieces'}
@@ -192,22 +192,22 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               </summary>
               <div className="mt-3 rounded-[var(--radius-card)] border border-line bg-surface p-4">{filters}</div>
             </details>
-            <form method="get" action="/search" className="ml-auto flex items-center gap-2">
+            <form method="get" action="/search" className="ml-auto flex min-w-0 max-w-full items-center gap-2">
               {Object.entries(sp).flatMap(([k, v]) => (k === 'sort' || k === 'cursor' ? [] : list(v).map((one, i) => <input key={`${k}-${i}`} type="hidden" name={k} value={one} />)))}
               <label htmlFor="sort" className="text-sm text-muted">Sort</label>
-              <select id="sort" name="sort" defaultValue={result?.sort ?? 'newest'} className="rounded-[var(--radius-control)] border border-line-strong bg-surface px-3 py-2 text-sm">
+              <select id="sort" name="sort" defaultValue={result?.sort ?? 'newest'} className="min-h-11 min-w-0 flex-1 rounded-[var(--radius-control)] border border-line-strong bg-surface px-3 py-2 text-sm">
                 {SEARCH_SORTS.filter((s) => (s !== 'relevance' || f?.q) && (s !== 'nearest' || f?.near)).map((s) => (
                   <option key={s} value={s}>{SEARCH_SORT_LABEL[s]}</option>
                 ))}
               </select>
-              <button type="submit" className="min-h-10 rounded-[var(--radius-control)] border border-line-strong bg-surface px-3 text-sm font-semibold">Apply</button>
+              <button type="submit" className="min-h-11 shrink-0 rounded-[var(--radius-control)] border border-ink px-3 text-sm font-semibold">Apply</button>
             </form>
           </div>
           {chips.length > 0 && (
             <ul className="mb-4 flex flex-wrap gap-2" aria-label="Active filters">
               {chips.map((c) => (
                 <li key={c.label}>
-                  <Link href={c.href} className="inline-flex min-h-9 items-center gap-1 rounded-full bg-primary-soft px-3 text-sm font-medium text-primary" aria-label={`Remove filter ${c.label}`}>
+                  <Link href={c.href} className="inline-flex min-h-11 items-center gap-2 border border-ink px-3 text-sm font-medium text-ink hover:bg-ink hover:text-canvas" aria-label={`Remove filter ${c.label}`}>
                     {c.label} <span aria-hidden="true">×</span>
                   </Link>
                 </li>

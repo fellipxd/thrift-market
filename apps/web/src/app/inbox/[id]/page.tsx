@@ -55,7 +55,7 @@ export default async function ConversationPage({ params, searchParams }: { param
           </ActionForm>
         )}
       </div>
-      <h1 className="mb-3 font-serif text-2xl text-ink">
+      <h1 className="display mb-4 text-3xl text-ink">
         {c.role === 'buyer' ? (
           <Link href={routes.shop(c.shop.slug)} className="hover:underline">{c.counterpartName}</Link>
         ) : (

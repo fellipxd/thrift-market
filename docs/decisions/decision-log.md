@@ -32,7 +32,7 @@ configurable default so work can proceed; it is *not* owner approval and can be 
 | A9 | One shop per seller, one owner (membership table ready for staff later) | schema `shops.owner_user_id UNIQUE`, `shop_members` |
 | A10 | Ad packages with draft sandbox prices; promotions refunded automatically only when nothing was delivered (rejected, cancelled before going live, paid after the booking lapsed, duplicate payment); unused time after an early stop is a staff refund request with a second approver; attribution window 7 days (informational); unpaid bookings lapse after 24 h | `ad_packages`; `platform_settings.promotion_attribution_days`, `promotion_payment_window_hours` — D05/D10 |
 | A11 | Intimate wear/swimwear category marked `restricted` (extra policy needed) | `categories.restricted` — D11 |
-| A12 | Visual direction: owner-selected editorial high-fashion style (phase-0 revisions 3/4, `docs/product/phase-0/07–09`) replaces the earlier rounded style; open-licensed webfonts until D01/brand fonts are chosen | `apps/web` design tokens (restyle slice in progress) |
+| A12 | Visual direction: owner-selected editorial high-fashion style (phase-0 revisions 3/4, `docs/product/phase-0/07–09`) replaces the earlier rounded style; open-licensed webfonts (Bodoni Moda display, Inter UI) until D01/brand fonts are chosen; campaign imagery only from actual listed pieces until licensed editorial photography exists | `apps/web/src/app/globals.css` tokens, `apps/web/src/app/layout.tsx` fonts |
 
 ## Open decisions (block go-live of the dependent capability, not development)
 

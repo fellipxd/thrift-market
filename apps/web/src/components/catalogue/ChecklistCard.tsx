@@ -16,7 +16,7 @@ export function ChecklistCard({ checklist }: { checklist: OnboardingChecklist })
   return (
     <section className="rounded-[var(--radius-card)] border border-line bg-surface p-4 sm:p-5" aria-labelledby="checklist-title">
       <div className="flex items-center justify-between gap-3">
-        <h2 id="checklist-title" className="text-lg font-semibold">
+        <h2 id="checklist-title" className="font-serif text-2xl">
           Set up your shop
         </h2>
         <span className="text-sm text-muted">

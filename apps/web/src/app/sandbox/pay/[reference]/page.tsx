@@ -26,7 +26,7 @@ export default async function SandboxPayPage({ params, searchParams }: { params:
     <div className="mx-auto max-w-md px-4 py-10">
       <Card className="space-y-4 border-2 border-dashed border-warning p-5">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Sandbox payment page</h1>
+          <h1 className="font-serif text-2xl">Sandbox payment page</h1>
           <Badge tone="warning">SIMULATION</Badge>
         </div>
         <Alert tone="warning">No real money moves here. This page imitates a payment provider so the full checkout can be tested before a real provider is connected.</Alert>

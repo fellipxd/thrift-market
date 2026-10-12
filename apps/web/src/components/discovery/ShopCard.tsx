@@ -6,15 +6,15 @@ import { routes } from '@/lib/routes';
 
 export function ShopCard({ shop, sponsoredPlacement }: { shop: ShopSummary; sponsoredPlacement?: 'nearby' }) {
   return (
-    <article className="rounded-[var(--radius-card)] border border-line bg-surface p-4">
+    <article className="border-t border-ink pt-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           {shop.sponsored && sponsoredPlacement ? (
-            <a href={routes.promoted(sponsoredPlacement, shop.id)} rel="sponsored nofollow" className="line-clamp-1 text-lg font-semibold text-primary hover:underline">
+            <a href={routes.promoted(sponsoredPlacement, shop.id)} rel="sponsored nofollow" className="font-serif text-2xl leading-tight text-ink hover:underline">
               {shop.name}
             </a>
           ) : (
-            <Link href={routes.shop(shop.slug)} className="line-clamp-1 text-lg font-semibold text-primary hover:underline">{shop.name}</Link>
+            <Link href={routes.shop(shop.slug)} className="font-serif text-2xl leading-tight text-ink hover:underline">{shop.name}</Link>
           )}
           <p className="text-sm text-muted">
             {shop.locationLabel}
@@ -41,7 +41,7 @@ export function ShopCard({ shop, sponsoredPlacement }: { shop: ShopSummary; spon
         <ul className="mt-3 grid grid-cols-3 gap-2" aria-label={`Pieces from ${shop.name}`}>
           {shop.thumbnails.slice(0, 3).map((key) => (
             <li key={key}>
-              <Photo storageKey={key} alt="" className="aspect-square w-full rounded-lg" />
+              <Photo storageKey={key} alt="" className="aspect-[4/5] w-full" />
             </li>
           ))}
         </ul>

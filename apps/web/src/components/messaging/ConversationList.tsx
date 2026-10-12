@@ -31,7 +31,7 @@ export function ConversationList({ items }: { items: ConversationSummary[] }) {
                 <p className={cx('line-clamp-1 flex-1 text-sm', c.unread > 0 ? 'text-ink' : 'text-muted')}>{c.lastMessagePreview}</p>
                 {c.offerStatus && OFFER_BADGE[c.offerStatus] && <Badge tone="accent">{OFFER_BADGE[c.offerStatus]}</Badge>}
                 {c.unread > 0 && (
-                  <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-white" aria-label={`${c.unread} unread`}>
+                  <span className="rounded-sm bg-accent px-2 py-0.5 text-xs font-bold text-white" aria-label={`${c.unread} unread`}>
                     {c.unread}
                   </span>
                 )}

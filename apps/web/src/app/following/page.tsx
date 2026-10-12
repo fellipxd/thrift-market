@@ -14,7 +14,7 @@ export default async function FollowingPage() {
   await requireUserPage(routes.following);
   const shops = await followedShops(await getCtx());
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6">
+    <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-8 xl:px-12">
       <PageHeader title="Shops you follow" description="Their latest pieces, newest first. Choose which drop alerts you get in notification preferences." />
       {shops.length === 0 ? (
         <EmptyState title="You aren’t following any shops yet" action={<ButtonLink href={routes.nearby()}>Find shops</ButtonLink>}>

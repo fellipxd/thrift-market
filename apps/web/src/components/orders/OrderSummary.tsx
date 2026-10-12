@@ -112,7 +112,7 @@ export function OrderTimeline({ order }: { order: OrderDetail }) {
   if (order.timeline.length === 0) return null;
   return (
     <Card className="p-4">
-      <h2 className="mb-3 font-semibold">Timeline</h2>
+      <h2 className="mb-3 font-serif text-xl">Timeline</h2>
       <ol className="space-y-2 border-l-2 border-line pl-4 text-sm">
         {order.timeline.map((e, i) => (
           <li key={`${e.at}-${i}`}>

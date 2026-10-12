@@ -41,7 +41,7 @@ export default async function AuctionPage({ params }: { params: Promise<{ id: st
     if (!isDomainError(err)) throw err;
   }
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6">
+    <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-8 xl:px-12">
       <nav aria-label="Breadcrumb" className="mb-3 text-sm text-muted">
         <Link href={routes.auctions} className="underline">Auctions</Link> / <span>{view.listing.title}</span>
       </nav>
@@ -56,7 +56,7 @@ export default async function AuctionPage({ params }: { params: Promise<{ id: st
             )
           )}
           <Card className="space-y-3 p-4">
-            <h2 className="font-semibold">Condition and details</h2>
+            <h2 className="font-serif text-xl">Condition and details</h2>
             <p className="text-sm">
               {[view.listing.conditionLabel, view.listing.sizeLabel && `Size ${view.listing.sizeLabel}`].filter(Boolean).join(' · ')}
             </p>
@@ -91,7 +91,7 @@ export default async function AuctionPage({ params }: { params: Promise<{ id: st
         <div className="space-y-5">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-accent">Scheduled auction</p>
-            <h1 className="font-serif text-3xl text-ink">{view.listing.title}</h1>
+            <h1 className="display text-[2.25rem] text-ink sm:text-5xl">{view.listing.title}</h1>
             <p className="mt-1 text-sm text-muted">
               from <Link href={routes.shop(view.listing.shop.slug)} className="underline">{view.listing.shop.name}</Link> · {view.listing.shop.city}, {view.listing.shop.state}{' '}
               {view.listing.shop.verified && <Badge tone="success">Identity checked</Badge>}
@@ -105,7 +105,7 @@ export default async function AuctionPage({ params }: { params: Promise<{ id: st
             declineSecondChance={declineSecondChanceAction}
           />
           <Card className="p-4">
-            <h2 className="mb-2 font-semibold">How this auction works</h2>
+            <h2 className="mb-2 font-serif text-xl">How this auction works</h2>
             <ul className="list-disc space-y-1 pl-5 text-sm text-muted">
               {view.rules.lines.map((l) => (
                 <li key={l}>{l}</li>

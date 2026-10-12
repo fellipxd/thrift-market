@@ -74,7 +74,7 @@ export default async function SellHome() {
       </div>
       <section aria-labelledby="next-h">
         <div className="mb-3 flex items-center justify-between">
-          <h2 id="next-h" className="text-lg font-semibold">Inventory and next actions</h2>
+          <h2 id="next-h" className="font-serif text-2xl">Inventory and next actions</h2>
           <Link href={routes.sell.listings} className="text-sm font-semibold text-primary underline">All listings</Link>
         </div>
         {overview.nextActions.length === 0 ? (
@@ -83,13 +83,13 @@ export default async function SellHome() {
           </EmptyState>
         ) : (
           <>
-            <table className="hidden w-full overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface text-left text-sm md:table">
-              <thead className="bg-primary-soft text-primary">
+            <table className="hidden w-full text-left text-sm md:table">
+              <thead className="label-caps border-b border-ink text-muted">
                 <tr>
-                  <th className="px-4 py-3">Item</th>
-                  <th className="px-4 py-3">Sale mode</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Next action</th>
+                  <th className="px-2 py-3 font-semibold">Item</th>
+                  <th className="px-2 py-3 font-semibold">Sale mode</th>
+                  <th className="px-2 py-3 font-semibold">Status</th>
+                  <th className="px-2 py-3 font-semibold">Next action</th>
                 </tr>
               </thead>
               <tbody>

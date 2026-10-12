@@ -28,7 +28,7 @@ export default async function SandboxCourierPage({ params }: { params: Promise<{
     <div className="mx-auto max-w-md px-4 py-10">
       <Card className="space-y-4 border-2 border-dashed border-warning p-5">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Sandbox courier console</h1>
+          <h1 className="font-serif text-2xl">Sandbox courier console</h1>
           <Badge tone="warning">SIMULATION</Badge>
         </div>
         <Alert tone="warning">No parcel is collected. This page imitates a courier sending tracking milestones to Thrift Market.</Alert>

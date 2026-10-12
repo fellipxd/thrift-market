@@ -51,7 +51,7 @@ export default async function EditListingPage({ params }: { params: Promise<{ id
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-sm text-muted"><Link href={routes.sell.listings} className="hover:underline">Listings</Link> / {l.isDraft ? 'Draft' : 'Edit'}</p>
-          <h1 className="text-2xl font-bold">{l.title}</h1>
+          <h1 className="display text-[2.25rem] text-ink md:text-5xl">{l.title}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <ListingStatusBadge status={l.status} label={l.statusLabel} />
             <span className="text-sm text-muted">{l.categoryName} · version {l.version}</span>

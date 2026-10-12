@@ -5,7 +5,7 @@ import { cx } from '@/lib/format';
 import { useFieldError } from './ActionForm';
 
 const control =
-  'block w-full rounded-[var(--radius-control)] border border-line-strong bg-surface px-3 py-2.5 text-base text-ink placeholder:text-muted/80 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 aria-[invalid=true]:border-error disabled:bg-sand';
+  'block min-h-11 w-full rounded-[var(--radius-control)] border border-line-strong bg-surface px-3 py-2.5 text-base text-ink placeholder:text-muted focus:border-ink focus:outline-2 focus:outline-offset-2 focus:outline-primary aria-[invalid=true]:border-error disabled:bg-sand';
 
 interface FieldProps {
   label: ReactNode;

@@ -169,7 +169,7 @@ export function AuctionLive({
       )}
 
       <section aria-labelledby="bid-history-h" className="rounded-[var(--radius-card)] border border-line bg-surface p-3">
-        <h2 id="bid-history-h" className="mb-2 font-semibold">Bid history</h2>
+        <h2 id="bid-history-h" className="mb-2 font-serif text-xl">Bid history</h2>
         {v.bids.length === 0 ? (
           <p className="text-sm text-muted">No bids yet.</p>
         ) : (

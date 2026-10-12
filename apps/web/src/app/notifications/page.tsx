@@ -44,7 +44,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
                 <button type="submit" className="block w-full p-3 text-left hover:bg-primary-soft/60">
                   <span className="flex items-start justify-between gap-2">
                     <span className={cx('text-sm', n.read ? 'text-ink' : 'font-semibold text-ink')}>
-                      {!n.read && <span className="mr-1 inline-block h-2 w-2 rounded-full bg-accent" aria-label="Unread" />}
+                      {!n.read && <span className="mr-1 inline-block h-2 w-2 rounded-sm bg-accent" aria-label="Unread" />}
                       {n.title}
                     </span>
                     <time dateTime={n.createdAt} className="whitespace-nowrap text-xs text-muted">{formatWat(n.createdAt).replace(' WAT', '')}</time>

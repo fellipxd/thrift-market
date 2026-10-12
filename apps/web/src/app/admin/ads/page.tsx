@@ -46,7 +46,7 @@ export default async function AdminPromotionsPage({ searchParams }: { searchPara
             key={t.key}
             href={withQuery(routes.admin.ads, { tab: t.key === 'review' ? undefined : t.key })}
             aria-current={tab === t.key ? 'page' : undefined}
-            className={cx('rounded-full border px-3 py-1 text-sm', tab === t.key ? 'border-primary bg-primary text-white' : 'border-line-strong bg-surface')}
+            className={cx('rounded-sm border px-3 py-1 text-sm', tab === t.key ? 'border-primary bg-primary text-white' : 'border-line-strong bg-surface')}
           >
             {t.label}
           </Link>

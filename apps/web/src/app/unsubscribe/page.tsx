@@ -23,7 +23,7 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
   return (
     <div className="mx-auto max-w-md px-4 py-12">
       <Card className="space-y-3 p-5">
-        <h1 className="font-serif text-2xl">Unsubscribe</h1>
+        <h1 className="display text-4xl">Unsubscribe</h1>
         {result ? (
           <Alert tone="success" title="You’re unsubscribed">
             You won’t receive “{TOPIC_INFO[result.topic].label}” by {result.channel === 'sms' ? 'SMS' : result.channel === 'email' ? 'email' : 'in-app notice'} any more. Order and account messages still reach you.

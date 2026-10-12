@@ -41,11 +41,11 @@ export default async function ShopPage({ params, searchParams }: Params) {
   const signedIn = ctx.actor.kind === 'user';
   const shopUrl = new URL(routes.shop(shop.slug), services().config.baseUrl).toString();
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 lg:py-10">
+    <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-8 xl:px-12 lg:py-10">
       <header className="flex flex-col gap-4 border-b border-line pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-accent">Shop</p>
-          <h1 className="font-serif text-4xl text-ink">{shop.name}</h1>
+          <p className="label-caps text-accent">Shop</p>
+          <h1 className="display mt-2 text-[2.5rem] text-ink md:text-6xl">{shop.name}</h1>
           <p className="mt-1 text-muted">{shop.locationText}{shop.memberSince ? ` · selling since ${formatWatDate(shop.memberSince)}` : ''}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {shop.verification.verified ? <Badge tone="success">{shop.verification.label}</Badge> : <Badge>Identity not checked</Badge>}
@@ -78,7 +78,7 @@ export default async function ShopPage({ params, searchParams }: Params) {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section aria-labelledby="catalogue-h">
-          <h2 id="catalogue-h" className="mb-4 text-xl font-semibold">
+          <h2 id="catalogue-h" className="mb-4 font-serif text-2xl">
             In the shop <span className="text-base font-normal text-muted">({shop.activeCount} available)</span>
           </h2>
           {shop.upcomingDrops.length > 0 && (
@@ -101,24 +101,24 @@ export default async function ShopPage({ params, searchParams }: Params) {
         <aside className="space-y-4">
           {shop.bio && (
             <Card className="p-4">
-              <h2 className="font-semibold">About</h2>
+              <h2 className="font-serif text-xl">About</h2>
               <p className="mt-1 whitespace-pre-line text-sm">{shop.bio}</p>
             </Card>
           )}
           <Card className="p-4">
-            <h2 className="font-semibold">Service history</h2>
+            <h2 className="font-serif text-xl">Service history</h2>
             <p className="mt-1 text-sm">{shop.reputation.sampleText}</p>
             <p className="mt-2 text-sm">
               <Link href={routes.shopReviews(shop.slug)} className="font-semibold text-primary underline">See reviews</Link>
             </p>
           </Card>
           <Card className="p-4">
-            <h2 className="font-semibold">Identity check</h2>
+            <h2 className="font-serif text-xl">Identity check</h2>
             <p className="mt-1 text-sm text-muted">{shop.verification.explanation}</p>
             {shop.verification.verifiedAt && <p className="mt-1 text-xs text-muted">Checked {formatWatDate(shop.verification.verifiedAt)}</p>}
           </Card>
           <Card className="p-4">
-            <h2 className="font-semibold">Delivery</h2>
+            <h2 className="font-serif text-xl">Delivery</h2>
             <p className="mt-1 text-sm">{shop.coverage.areaText}</p>
             <p className="text-sm text-muted">{shop.coverage.methodsText}</p>
             <p className="mt-1 text-sm text-muted">Usually dispatches within {shop.dispatchDays} {shop.dispatchDays === 1 ? 'day' : 'days'}.</p>
@@ -126,7 +126,7 @@ export default async function ShopPage({ params, searchParams }: Params) {
           </Card>
           {shop.returnsPolicy && (
             <Card className="p-4">
-              <h2 className="font-semibold">Returns</h2>
+              <h2 className="font-serif text-xl">Returns</h2>
               <p className="mt-1 whitespace-pre-line text-sm">{shop.returnsPolicy}</p>
             </Card>
           )}

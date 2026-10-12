@@ -163,7 +163,7 @@ export function ConversationThread(props: ConversationThreadProps) {
             <li key={m.id} className="flex flex-col">
               {showDay && <p className="my-2 text-center text-xs font-semibold uppercase tracking-wide text-muted">{day}</p>}
               {m.kind === 'system' ? (
-                <p className="mx-auto max-w-[85%] rounded-full bg-sand px-3 py-1 text-center text-xs text-ink">{m.body}</p>
+                <p className="mx-auto max-w-[85%] rounded-sm bg-sand px-3 py-1 text-center text-xs text-ink">{m.body}</p>
               ) : m.kind === 'offer' && offerInfo ? (
                 <OfferCard message={m} offer={offerInfo.offer} thread={offerInfo.thread} role={role} serverNow={serverNow} action={props.offerAction} blocked={blocked} onDone={() => poll().catch(() => undefined)} />
               ) : (

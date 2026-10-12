@@ -17,7 +17,7 @@ export default async function AuctionsPage({ searchParams }: { searchParams: Pro
     listAuctions(ctx, { status: 'ended', limit: 8 }),
   ]);
   return (
-    <div className="mx-auto max-w-7xl space-y-10 px-4 py-6">
+    <div className="mx-auto max-w-[1280px] space-y-10 px-4 py-8 md:px-8 xl:px-12">
       <PageHeader
         title="Auctions"
         description="Scheduled single-piece auctions. The rules are shown before you bid, server time decides, and a late bid extends the end so nobody gets sniped."

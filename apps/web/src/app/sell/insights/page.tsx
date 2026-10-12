@@ -30,7 +30,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
             key={d}
             href={withQuery(routes.sell.insights, { days: d === 30 ? undefined : d })}
             aria-current={ins.periodDays === d ? 'page' : undefined}
-            className={cx('rounded-full border px-3 py-1 text-sm', ins.periodDays === d ? 'border-primary bg-primary text-white' : 'border-line-strong bg-surface')}
+            className={cx('rounded-sm border px-3 py-1 text-sm', ins.periodDays === d ? 'border-primary bg-primary text-white' : 'border-line-strong bg-surface')}
           >
             Last {d} days
           </Link>

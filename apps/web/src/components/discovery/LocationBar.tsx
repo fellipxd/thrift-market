@@ -6,12 +6,12 @@ import { UseMyLocationButton } from './UseMyLocationButton';
 /** "Delivery to: Abuja · Change" — the chosen place drives delivery estimates and "near me" sections. */
 export function LocationBar({ location }: { location: LocationPreference | null }) {
   return (
-    <details className="group rounded-[var(--radius-control)]">
-      <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-sm font-semibold text-primary">
-        <span>Delivery to: {location ? locationLabel(location) : 'Choose your location'}</span>
-        <span className="underline">Change</span>
+    <details className="group">
+      <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm text-ink">
+        <span className="font-semibold">Delivery to: {location ? locationLabel(location) : 'Choose your location'}</span>
+        <span className="text-primary underline underline-offset-4">Change</span>
       </summary>
-      <div className="mt-2 max-w-md space-y-3 rounded-[var(--radius-card)] border border-line bg-surface p-4">
+      <div className="mt-2 max-w-md space-y-3 border border-ink bg-surface p-4">
         <ActionForm action={chooseLocationAction} className="space-y-2">
           <label htmlFor="where" className="block text-sm font-semibold">City, area or state</label>
           <div className="flex gap-2">

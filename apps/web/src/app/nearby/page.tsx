@@ -39,7 +39,7 @@ export default async function NearbyPage({ searchParams }: { searchParams: Promi
   await recordSponsoredImpressions('nearby', res?.sponsored.map((s) => s.id) ?? []);
   const radius = typeof sp.radius === 'string' ? sp.radius : '25';
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6">
+    <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-8 xl:px-12">
       <PageHeader title="Nearby shops" description="Shops near you, with approximate distances and where they actually deliver. Exact addresses are never shown." />
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <LocationBar location={location} />
