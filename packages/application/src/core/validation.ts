@@ -9,6 +9,9 @@ export function parseInput<S extends z.ZodType>(schema: S, raw: unknown): z.outp
     for (const issue of result.error.issues) {
       const key = issue.path.join('.') || '_';
       if (!fieldErrors[key]) fieldErrors[key] = issue.message;
+      // Forms name fields by their top-level key (e.g. a list "condition"), so surface nested errors there too.
+      const top = issue.path.length > 1 ? String(issue.path[0]) : null;
+      if (top && !fieldErrors[top]) fieldErrors[top] = issue.message;
     }
     const first = Object.values(fieldErrors)[0] ?? 'Check the highlighted fields.';
     throw new DomainError('VALIDATION_FAILED', first, { fieldErrors });

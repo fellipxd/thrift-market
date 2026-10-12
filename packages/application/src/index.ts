@@ -38,3 +38,4 @@ export * from './catalogue/cards';
 export * from './shops';
 export * from './catalogue';
 export * from './growth/saves-follows';
+export * from './discovery';

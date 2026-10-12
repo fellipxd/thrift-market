@@ -15,7 +15,7 @@ independent QA. Status values: **Pass** (automated test passing at the stated re
 | T08 | R01–R03 R09 R20 R23 | Cross-object access by buyer/seller/staff | per-slice isolation tests | Partial (catalogue/shops pass; other slices pending) |
 | T09 | R04–R06 R14 | Batch with distinct pieces; schema change preserves old listings | `test/catalogue/listings.test.ts` | Pass (listing snapshots; order snapshots pending slice C) |
 | T10 | R05 R17 | Undisclosed flaw dispute uses purchased snapshot | `test/disputes/*` | Pending (slice D) |
-| T11 | R08 R15 R16 | Nearby with permission denied; excluded destination; unavailable route | `test/discovery/*`, `test/checkout/*` | Pending (slices B, C) |
+| T11 | R08 R15 R16 | Nearby with permission denied; excluded destination; unavailable route | `test/discovery/feeds.test.ts`, `test/checkout/*` | Partial (discovery filter matrix and nearby pass; checkout enforcement pending slice C) |
 | T12 | R13 R16 R17 | Seller-reported delivery cannot release payout; dispute freezes release | `test/payouts/*`, `test/fulfilment/*` | Pending (slices C, D) |
 | T13 | R18 R19 R22 | Non-buyers cannot review; ads grant no trust; low review counts visible | `test/trust/*`, `test/ads/*` | Pending (slices G, H) |
 | T14 | R21 R22 R24 | Duplicate drop events do not spam; unsubscribe; sold listings leave promotion | `test/growth/*`, `test/ads/*` | Pending (slices G, H) |
