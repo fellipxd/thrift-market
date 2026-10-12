@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { inboxUnreadCount } from '@thrift/application';
+import { bagCount, inboxUnreadCount } from '@thrift/application';
 import { routes } from '@/lib/routes';
 import { getCtx, getUser } from '@/server/session';
 import { NotificationBell } from './NotificationBell';
@@ -18,7 +18,10 @@ const navLink = 'label-caps inline-flex min-h-11 items-center px-2 text-ink unde
 /** Editorial header: quiet tracked navigation around a serif masthead, with search always reachable below it. */
 export async function SiteHeader() {
   const user = await getUser();
-  const unread = user ? await inboxUnreadCount(await getCtx()).catch(() => 0) : 0;
+  const ctx = user ? await getCtx() : null;
+  const unread = ctx ? await inboxUnreadCount(ctx).catch(() => 0) : 0;
+  const inBag = ctx ? await bagCount(ctx).catch(() => 0) : 0;
+  const bagLabel = inBag > 0 ? `Bag, ${inBag} ${inBag === 1 ? 'piece' : 'pieces'}` : 'Bag';
   return (
     <header className="border-b border-ink bg-canvas">
       <div className="mx-auto max-w-[1280px] px-4 md:px-8 xl:px-12">
@@ -41,6 +44,11 @@ export async function SiteHeader() {
             <Link href={routes.saved} className={navLink}>
               Saved
             </Link>
+            {user && (
+              <Link href={routes.bag} className={navLink} aria-label={bagLabel}>
+                Bag{inBag > 0 && <span className="ml-1 tabular-nums">({inBag})</span>}
+              </Link>
+            )}
             <Link href={routes.inbox} className={navLink}>
               Inbox
               {unread > 0 && (
@@ -65,7 +73,12 @@ export async function SiteHeader() {
           </nav>
           <div className="flex items-center justify-end gap-1 md:hidden">
             {user ? (
-              <NotificationBell className="label-caps inline-flex min-h-11 items-center px-2 text-ink" />
+              <>
+                <Link href={routes.bag} className="label-caps inline-flex min-h-11 items-center px-2 text-ink" aria-label={bagLabel}>
+                  Bag{inBag > 0 && <span className="ml-1 tabular-nums">({inBag})</span>}
+                </Link>
+                <NotificationBell className="label-caps inline-flex min-h-11 items-center px-2 text-ink" />
+              </>
             ) : (
               <Link href={routes.auth.signIn()} className="label-caps inline-flex min-h-11 items-center bg-primary px-3 text-white">
                 Sign in

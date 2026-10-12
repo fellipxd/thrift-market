@@ -1,39 +1,43 @@
-import { many, maybeOne, one, withTransaction, type Queryable } from '@thrift/database';
+import { many, maybeOne, withTransaction } from '@thrift/database';
 import type { AppContext } from '../core/context';
-import { enqueue } from '../core/outbox';
 import { getSettings } from '../core/settings';
 import { markReservationPaymentPending, releaseReservation } from '../inventory/authority';
 import { applyVerifiedPayment } from '../payments/apply';
+import { enqueueReservationReleased, liveGroupFor } from './holds';
 
-/** Tells other modules (offers, auctions) that a hold ended without a sale. */
-export async function enqueueReservationReleased(tx: Queryable, reservationId: string): Promise<void> {
-  const r = await one<{ source: string; source_id: string | null; listing_id: string }>(tx, 'SELECT source, source_id, listing_id FROM reservations WHERE id = $1', [reservationId]);
-  await enqueue(tx, {
-    topic: 'reservation.released',
-    aggregateId: reservationId,
-    payload: { reservationId, source: r.source, sourceId: r.source_id, listingId: r.listing_id },
-    dedupeKey: `reservation.released:${reservationId}`,
-  });
-}
+export { enqueueReservationReleased } from './holds';
 
+/**
+ * Releases a hold and, when it belongs to an unpaid order, every other hold in that order too (a checkout group
+ * expires as a unit, never one piece at a time), then cancels the order.
+ */
 async function releaseAndCancel(ctx: AppContext, reservationId: string, reason: string): Promise<boolean> {
   return withTransaction(ctx.pool, async (tx) => {
-    const rel = await releaseReservation(tx, reservationId, { reason, status: 'expired' });
-    if (!rel.released) return false;
+    const group = await liveGroupFor(tx, reservationId);
+    let released = false;
+    for (const id of group.reservationIds) {
+      const rel = await releaseReservation(tx, id, { reason, status: 'expired' });
+      if (!rel.released) continue;
+      released = true;
+      await enqueueReservationReleased(tx, id);
+    }
+    if (!released) return false;
     const orders = await many<{ id: string }>(
       tx,
       `UPDATE orders SET status = 'cancelled', payment_status = CASE WHEN payment_status = 'pending' THEN 'failed' ELSE payment_status END,
               fulfilment_status = 'cancelled', cancel_reason = 'hold_expired_unpaid', cancelled_at = now(), updated_at = now()
-        WHERE reservation_id = $1 AND status = 'pending_payment' RETURNING id`,
-      [reservationId],
+        WHERE id = ANY($1::uuid[]) AND status = 'pending_payment' RETURNING id`,
+      [group.orderIds],
     );
     for (const o of orders) {
       // Attempts the provider reported as definitively failed are closed; unknown ones stay uncertain so a late
-      // success is caught by reconciliation and refunded (or re-allocated if the unit is still free).
+      // success is caught by reconciliation and refunded (or re-allocated if the units are still free).
       await tx.query(`UPDATE payment_attempts SET status = 'abandoned', updated_at = now() WHERE order_id = $1 AND status = 'initiated'`, [o.id]);
-      await tx.query(`INSERT INTO order_events (order_id, kind, actor_kind, data) VALUES ($1, 'hold_expired', 'system', $2)`, [o.id, JSON.stringify({ reservationId })]);
+      await tx.query(`INSERT INTO order_events (order_id, kind, actor_kind, data) VALUES ($1, 'hold_expired', 'system', $2)`, [
+        o.id,
+        JSON.stringify({ reservationIds: group.reservationIds }),
+      ]);
     }
-    await enqueueReservationReleased(tx, reservationId);
     return true;
   });
 }
@@ -44,8 +48,8 @@ type Verdict = 'paid' | 'failed' | 'pending';
 async function verifyReservationPayments(ctx: AppContext, reservationId: string): Promise<Verdict> {
   const attempts = await many<{ reference: string }>(
     ctx.pool,
-    `SELECT pa.reference FROM payment_attempts pa JOIN orders o ON o.id = pa.order_id
-      WHERE o.reservation_id = $1 AND o.status = 'pending_payment' AND pa.status IN ('initiated','pending','uncertain')`,
+    `SELECT DISTINCT pa.reference FROM payment_attempts pa JOIN orders o ON o.id = pa.order_id JOIN order_items oi ON oi.order_id = o.id
+      WHERE oi.reservation_id = $1 AND o.status = 'pending_payment' AND pa.status IN ('initiated','pending','uncertain')`,
     [reservationId],
   );
   let pending = false;
@@ -86,7 +90,11 @@ export async function expireReservations(ctx: AppContext, batchSize = 50): Promi
       continue;
     }
     if (verdict === 'pending' && r.status === 'active') {
-      await withTransaction(ctx.pool, (tx) => markReservationPaymentPending(tx, r.id, new Date(ctx.now().getTime() + settings.payment_grace_minutes * 60_000)));
+      const graceUntil = new Date(ctx.now().getTime() + settings.payment_grace_minutes * 60_000);
+      await withTransaction(ctx.pool, async (tx) => {
+        // The whole group waits for the payment outcome together.
+        for (const id of (await liveGroupFor(tx, r.id)).reservationIds) await markReservationPaymentPending(tx, id, graceUntil);
+      });
       graced++;
       continue;
     }

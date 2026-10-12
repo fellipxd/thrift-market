@@ -5,28 +5,28 @@ import { recordAudit } from '../core/audit';
 import { requireUser } from '../core/authz';
 import type { AppContext } from '../core/context';
 import { parseInput } from '../core/validation';
+import { orderHolds } from '../checkout/holds';
 import { lockStock, restoreSoldUnits, withdrawStock } from '../inventory/authority';
 import { notifyUser } from '../notifications/notify';
 import { createRefund } from '../payments/refunds';
 
 /**
- * Seller cancels a paid order before dispatch: full automatic refund, payout cancelled, the unit returns to the
+ * Seller cancels a paid order before dispatch: full automatic refund, payout cancelled, every piece returns to the
  * seller's stock (or is withdrawn if the seller can no longer sell it), and the cancellation counts against
  * service reputation (order_events 'seller_cancelled').
  */
 export async function cancelOrderBySeller(ctx: AppContext, raw: unknown): Promise<{ orderId: string; refundId: string }> {
   const user = requireUser(ctx);
   const input = parseInput(sellerCancelInput, raw);
-  const peek = await maybeOne<{ id: string; listing_id: string; quantity: number }>(
+  const peek = await maybeOne<{ id: string }>(
     ctx.pool,
-    `SELECT o.id, oi.listing_id, oi.quantity FROM orders o JOIN order_items oi ON oi.order_id = o.id
-       JOIN shop_members m ON m.shop_id = o.shop_id AND m.user_id = $2
-      WHERE o.id = $1 LIMIT 1`,
+    `SELECT o.id FROM orders o JOIN shop_members m ON m.shop_id = o.shop_id AND m.user_id = $2 WHERE o.id = $1`,
     [input.orderId, user.userId],
   );
   if (!peek) throw new DomainError('NOT_FOUND', 'Order not found.');
+  const items = await orderHolds(ctx.pool, peek.id);
   return withTransaction(ctx.pool, async (tx) => {
-    await lockStock(tx, peek.listing_id);
+    for (const it of items) await lockStock(tx, it.listingId);
     const o = await one<{ id: string; number: string; status: string; payment_status: string; fulfilment_status: string; total_minor: number; buyer_user_id: string }>(
       tx,
       'SELECT id, number, status, payment_status, fulfilment_status, total_minor, buyer_user_id FROM orders WHERE id = $1 FOR UPDATE',
@@ -34,8 +34,10 @@ export async function cancelOrderBySeller(ctx: AppContext, raw: unknown): Promis
     );
     if (o.status !== 'confirmed' || o.payment_status !== 'paid') throw new DomainError('INVALID_STATE', 'Only paid orders that haven’t been dispatched can be cancelled.');
     if (o.fulfilment_status !== 'awaiting_dispatch') throw new DomainError('INVALID_STATE', 'This order has already been dispatched. Open a support case instead.');
-    await restoreSoldUnits(tx, { listingId: peek.listing_id, quantity: peek.quantity, reason: 'seller_cancelled_order', actorUserId: user.userId });
-    if (!input.restock) await withdrawStock(tx, { listingId: peek.listing_id, quantity: peek.quantity, reason: 'seller_cancelled_not_restocked', actorUserId: user.userId });
+    for (const it of items) {
+      await restoreSoldUnits(tx, { listingId: it.listingId, quantity: it.quantity, reason: 'seller_cancelled_order', actorUserId: user.userId });
+      if (!input.restock) await withdrawStock(tx, { listingId: it.listingId, quantity: it.quantity, reason: 'seller_cancelled_not_restocked', actorUserId: user.userId });
+    }
     await tx.query(
       `UPDATE orders SET status = 'cancelled', fulfilment_status = 'cancelled', cancel_reason = $2, cancelled_at = now(), updated_at = now() WHERE id = $1`,
       [o.id, `seller: ${input.reason}`],

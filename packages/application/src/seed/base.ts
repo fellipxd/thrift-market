@@ -7,7 +7,8 @@ const SETTING_DESCRIPTIONS: Record<string, string> = {
   payment_grace_minutes: 'Draft: extra minutes a hold waits for an unresolved payment before reconciliation.',
   offer_expiry_hours: 'Draft: hours before an unanswered offer expires.',
   offer_acceptance_hold_minutes: 'Draft: minutes an accepted offer holds stock for the buyer to pay.',
-  max_active_reservations_per_buyer: 'Abuse control: concurrent holds per buyer.',
+  max_active_reservations_per_buyer: 'Abuse control: concurrent holds per buyer (each piece in a bag checkout is a hold).',
+  max_bag_items: 'Draft: pieces a shopper can keep in their bag (interest only, never a hold). Limit to measure before release.',
   max_offers_per_thread_per_day: 'Abuse control: offers per negotiation per day.',
   winner_payment_hours: 'Draft: hours an auction winner has to pay.',
   second_chance_hours: 'Draft: hours a runner-up has to accept a second-chance offer.',
@@ -38,7 +39,7 @@ const POLICIES = [
     kind: 'checkout_terms',
     version: '2026-10-draft-1',
     title: 'Checkout terms (draft)',
-    body: 'Prices, delivery costs and any fees are shown before payment. Adding to a basket does not reserve an item; starting checkout holds it for a short time. Payment is confirmed only when the payment provider verifies it.',
+    body: 'Prices, delivery costs and any fees are shown before payment. Adding to your bag does not reserve an item; starting checkout holds it (every piece of a same-shop bag checkout together) for a short time. Payment is confirmed only when the payment provider verifies it.',
   },
   {
     kind: 'buyer_protection',

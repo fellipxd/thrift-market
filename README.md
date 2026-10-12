@@ -1,7 +1,8 @@
 # Thrift Market (working name)
 
 A Nigeria-wide marketplace for secondhand fashion: shops, detailed condition-first listings, nearby discovery,
-item chat with formal offers, scheduled auctions, protected platform checkout, hybrid delivery tracking,
+item chat with formal offers, scheduled auctions, a same-seller bag and platform checkout (holds every piece or none;
+the protection model awaits decision D04), hybrid delivery tracking,
 disputes, verified-purchase reviews, follows/drops and labelled promotions.
 
 > Status: development build. Payments and couriers run in **sandbox mode** (no real money or parcels).

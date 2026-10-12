@@ -16,7 +16,7 @@ export default function HelpPage() {
         <section>
           <h2 className="font-serif text-2xl">Fixed price, offers and auctions</h2>
           <p className="mt-2 text-muted">
-            Each listing has one sale mode. Adding an item to your basket does not reserve it. Starting checkout or having an offer accepted holds the item for you for a short time. Auctions follow the rules shown on the auction page, including the end-time extension for late bids. A winning bid must be paid by the stated deadline.
+            Each listing has one sale mode. Adding an item to your bag does not reserve it. Starting checkout or having an offer accepted holds the item for you for a short time; a bag checkout holds every piece from that shop together, or none. Pieces from one shop are paid for together and ship as one parcel with one delivery fee. Auctions follow the rules shown on the auction page, including the end-time extension for late bids. A winning bid must be paid by the stated deadline.
           </p>
         </section>
         <section id="protection">

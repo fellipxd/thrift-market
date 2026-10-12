@@ -3,6 +3,7 @@ import {
   applyStockMovement,
   assertOfferAction,
   canTransition,
+  combineDeliveryOptions,
   computeReputation,
   deliveryOptionsFor,
   evaluateOfferAmount,
@@ -10,6 +11,7 @@ import {
   PAYOUT_STATUS,
   validateForPublish,
   type AttributeSchema,
+  type DeliveryOption,
   type ShopCoverage,
 } from '../src';
 
@@ -82,5 +84,21 @@ describe('reputation', () => {
     expect(proven.score!).toBeGreaterThan(newbie.score!);
     expect(proven.tier).toBe('trusted');
     expect(newbie.tier).toBe('new');
+  });
+});
+
+describe('combined same-shop shipment', () => {
+  const opt = (method: DeliveryOption['method'], feeMinor: number, transitDaysMax = 3, protectionEligible = true): DeliveryOption => ({
+    method, label: method, feeMinor, transitDaysMin: 1, transitDaysMax, dispatchDays: 2, trackingNote: '', protectionEligible,
+  });
+  it('keeps only methods every piece supports, at one (highest) fee and the longest transit', () => {
+    const combined = combineDeliveryOptions([
+      [opt('seller_arranged', 250_000), opt('pickup', 0), opt('integrated', 300_000, 4)],
+      [opt('seller_arranged', 250_000), opt('integrated', 320_000, 5, false)],
+    ]);
+    expect(combined.map((o) => o.method)).toEqual(['seller_arranged', 'integrated']);
+    expect(combined[1]).toMatchObject({ feeMinor: 320_000, transitDaysMax: 5, protectionEligible: false });
+    expect(combineDeliveryOptions([[opt('pickup', 0)], []])).toEqual([]);
+    expect(combineDeliveryOptions([])).toEqual([]);
   });
 });

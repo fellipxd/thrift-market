@@ -7,6 +7,7 @@ import { maybeOne, one, type Queryable } from '@thrift/database';
  *
  * Lock order (always acquire in this order to avoid deadlocks):
  *   auctions → offer_threads → inventory_stock → reservations → orders → payment_attempts → payouts
+ * Several stock rows in one transaction (a same-seller bag order) are taken in listing-id order (ADR-0009).
  *
  * Callers pass a transaction client (Tx). Never call external providers while these locks are held.
  *

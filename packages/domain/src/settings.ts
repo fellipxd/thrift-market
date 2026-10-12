@@ -8,6 +8,7 @@ export const DEFAULT_SETTINGS = {
   offer_expiry_hours: 24,
   offer_acceptance_hold_minutes: 60,
   max_active_reservations_per_buyer: 5,
+  max_bag_items: 20,
   max_offers_per_thread_per_day: 6,
   winner_payment_hours: 24,
   second_chance_hours: 24,

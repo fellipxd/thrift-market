@@ -13,7 +13,10 @@ export function OrderList({ items, hrefFor, counterpartLabel }: { items: OrderLi
             <div className="h-16 w-14 flex-none overflow-hidden rounded-md bg-sand">{o.photoUrl && <Photo src={o.photoUrl} alt="" className="h-full w-full" />}</div>
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-2">
-                <p className="line-clamp-1 font-semibold text-ink">{o.title}</p>
+                <p className="line-clamp-1 font-semibold text-ink">
+                  {o.title}
+                  {o.itemCount > 1 && <span className="font-normal text-muted"> and {o.itemCount - 1} more</span>}
+                </p>
                 <p className="whitespace-nowrap font-semibold">{formatNaira(o.totalMinor)}</p>
               </div>
               <p className="text-xs text-muted">

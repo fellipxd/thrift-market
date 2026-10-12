@@ -4,7 +4,9 @@ import { requireUser } from '../core/authz';
 import type { AppContext } from '../core/context';
 import { getSettings } from '../core/settings';
 import { listAddresses, type AddressView } from '../addresses/addresses';
-import { quoteDeliveryOptions } from '../delivery/quote';
+import { getBagGroup, type BagItem } from '../bag/bag';
+import { quoteDeliveryOptions, quoteGroupDeliveryOptions } from '../delivery/quote';
+import { countActiveReservations } from '../inventory/authority';
 import { mediaPath } from '../media/media';
 
 export interface CheckoutOption extends DeliveryOption {
@@ -106,7 +108,7 @@ export async function getCheckoutContext(ctx: AppContext, src: Source): Promise<
     // Coming back to an item you're already paying for resumes that checkout instead of conflicting with your own hold.
     const mine = await maybeOne<{ id: string }>(
       ctx.pool,
-      `SELECT o.id FROM orders o JOIN reservations r ON r.id = o.reservation_id
+      `SELECT o.id FROM orders o JOIN order_items oi ON oi.order_id = o.id JOIN reservations r ON r.id = oi.reservation_id
         WHERE r.listing_id = $1 AND o.buyer_user_id = $2 AND o.status = 'pending_payment' AND r.status IN ('active','payment_pending')
         ORDER BY o.created_at DESC LIMIT 1`,
       [l.id, user.userId],
@@ -156,6 +158,78 @@ export async function getCheckoutContext(ctx: AppContext, src: Source): Promise<
     selectedAddress,
     options,
     holdMinutes: settings.checkout_hold_minutes,
+    blocked,
+    policies,
+    serverNow: ctx.now().toISOString(),
+  };
+}
+
+export interface BagCheckoutContext {
+  shop: { id: string; name: string; slug: string };
+  /** Pieces this checkout will hold together, at today's prices. */
+  items: BagItem[];
+  /** Pieces from this shop in the bag that can't be included right now. */
+  excluded: BagItem[];
+  addresses: AddressView[];
+  selectedAddress: AddressView | null;
+  options: CheckoutOption[];
+  holdMinutes: number;
+  /** An unpaid order of yours from this shop that still holds pieces. */
+  pendingOrderId: string | null;
+  blocked: string | null;
+  policies: { title: string; body: string }[];
+  serverNow: string;
+}
+
+/** Same-seller bag checkout page: the shop's available bag pieces, one combined delivery quote and the totals. */
+export async function getBagCheckoutContext(ctx: AppContext, src: { shop?: string; address?: string }): Promise<BagCheckoutContext> {
+  const user = requireUser(ctx);
+  const settings = await getSettings(ctx.pool);
+  const group = uuidOk(src.shop) ? await getBagGroup(ctx, src.shop!) : null;
+  if (!group) throw new DomainError('NOT_FOUND', 'Your bag has no pieces from this shop.');
+  const items = group.checkoutable;
+  let blocked = group.blocked;
+  const holding = await countActiveReservations(ctx.pool, user.userId);
+  if (!blocked && holding + items.length > settings.max_active_reservations_per_buyer) {
+    const left = Math.max(settings.max_active_reservations_per_buyer - holding, 0);
+    blocked =
+      left === 0
+        ? 'You have several checkouts in progress. Finish or cancel one before starting another.'
+        : `You can hold ${left} more ${left === 1 ? 'piece' : 'pieces'} right now. Remove some pieces from this checkout or finish another one first.`;
+  }
+  const addresses = await listAddresses(ctx);
+  const selectedAddress = addresses.find((a) => a.id === src.address) ?? addresses.find((a) => a.isDefault) ?? addresses[0] ?? null;
+  const fees = { commissionBps: settings.commission_bps, buyerFeeBps: settings.buyer_fee_bps, buyerFeeFlatMinor: settings.buyer_fee_flat_minor };
+  const lines = items.map((i) => ({ unitPriceMinor: i.unitPriceMinor ?? 0, quantity: i.quantity }));
+  const options: CheckoutOption[] =
+    selectedAddress && items.length > 0
+      ? (await quoteGroupDeliveryOptions(ctx.pool, { listingIds: items.map((i) => i.listingId), destination: { state: selectedAddress.state, city: selectedAddress.city } })).map((o) => {
+          const t = computeOrderTotals({ lines, shippingMinor: o.feeMinor, fees, shippingPaidToSeller: o.method !== 'integrated' });
+          return { ...o, totals: { itemsTotalMinor: t.itemsTotalMinor, shippingMinor: t.shippingMinor, buyerFeeMinor: t.buyerFeeMinor, totalMinor: t.totalMinor } };
+        })
+      : [];
+  const pending = await maybeOne<{ id: string }>(
+    ctx.pool,
+    `SELECT o.id FROM orders o
+      WHERE o.buyer_user_id = $1 AND o.shop_id = $2 AND o.status = 'pending_payment' AND o.source = 'checkout'
+        AND EXISTS (SELECT 1 FROM order_items oi JOIN reservations r ON r.id = oi.reservation_id
+                     WHERE oi.order_id = o.id AND r.status IN ('active','payment_pending'))
+      ORDER BY o.created_at DESC LIMIT 1`,
+    [user.userId, group.shop.id],
+  );
+  const policies = await many<{ title: string; body: string }>(
+    ctx.pool,
+    `SELECT DISTINCT ON (kind) title, body FROM policy_versions WHERE kind IN ('checkout_terms','buyer_protection') AND effective_at <= now() ORDER BY kind, effective_at DESC`,
+  );
+  return {
+    shop: { id: group.shop.id, name: group.shop.name, slug: group.shop.slug },
+    items,
+    excluded: group.items.filter((i) => i.state !== 'available'),
+    addresses,
+    selectedAddress,
+    options,
+    holdMinutes: settings.checkout_hold_minutes,
+    pendingOrderId: pending?.id ?? null,
     blocked,
     policies,
     serverNow: ctx.now().toISOString(),

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { idempotencyKey, uuid } from './common';
+import { idempotencyKey, minorAmount, uuid } from './common';
 
 export const DELIVERY_METHODS = ['integrated', 'seller_arranged', 'pickup'] as const;
 
@@ -21,6 +21,33 @@ export const reservationCheckoutInput = z.object({
   idempotencyKey,
 });
 export type ReservationCheckoutInput = z.output<typeof reservationCheckoutInput>;
+
+/** Saves a piece to the bag (or changes its quantity). The bag is interest only and never holds stock. */
+export const bagItemInput = z.object({
+  listingId: uuid,
+  quantity: z.preprocess((v) => (v === undefined || v === '' ? 1 : v), quantity),
+});
+export const bagRemoveInput = z.object({ listingId: uuid });
+
+/** Most pieces one bag checkout can hold; the buyer's active-hold limit can make the real cap lower. */
+export const MAX_BAG_CHECKOUT_ITEMS = 20;
+
+/**
+ * Same-seller bag checkout. The buyer confirms the exact pieces, quantities and unit prices they saw; the server
+ * holds every piece or none, and refuses if any price changed so the buyer can review the new total.
+ */
+export const bagCheckoutInput = z.object({
+  shopId: uuid,
+  items: z
+    .array(z.object({ listingId: uuid, quantity, expectedUnitPriceMinor: z.coerce.number().pipe(minorAmount) }))
+    .min(1, 'Your bag has no pieces from this shop.')
+    .max(MAX_BAG_CHECKOUT_ITEMS, `Check out at most ${MAX_BAG_CHECKOUT_ITEMS} pieces at a time.`)
+    .refine((items) => new Set(items.map((i) => i.listingId)).size === items.length, 'Each piece can appear only once.'),
+  addressId: z.string({ message: 'Choose a delivery address.' }).uuid('Choose a delivery address.'),
+  deliveryMethod: z.enum(DELIVERY_METHODS, { message: 'Choose how you want it delivered.' }),
+  idempotencyKey,
+});
+export type BagCheckoutInput = z.output<typeof bagCheckoutInput>;
 
 export const orderIdInput = z.object({ orderId: uuid });
 

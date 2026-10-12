@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { Fragment } from 'react';
 import { cookies, headers } from 'next/headers';
 import { notFound } from 'next/navigation';
-import { getListingDetail, quoteDeliveryOptions, recordListingView, type ListingDetail } from '@thrift/application';
+import { getListingDetail, isInBag, quoteDeliveryOptions, recordListingView, type ListingDetail } from '@thrift/application';
 import { formatNaira, formatWat, isDomainError, isNigerianState, NIGERIAN_STATES, stateLabel, type DeliveryOption } from '@thrift/domain';
 import { ItemGallery } from '@/components/catalogue/ItemGallery';
 import { ShareCard } from '@/components/catalogue/ShareCard';
@@ -15,7 +15,7 @@ import { Card } from '@/components/ui/Card';
 import { routes } from '@/lib/routes';
 import { services } from '@/server/services';
 import { getCtx } from '@/server/session';
-import { saveItemAction } from './actions';
+import { addToBagAction, saveItemAction } from './actions';
 
 type Params = { params: Promise<{ id: string }>; searchParams: Promise<{ dest?: string }> };
 
@@ -67,6 +67,7 @@ export default async function ItemPage({ params, searchParams }: Params) {
   const signedIn = ctx.actor.kind === 'user';
   const itemUrl = new URL(routes.item(item.id), services().config.baseUrl).toString();
   const canBuy = item.availability === 'available' && !item.isOwner && item.saleMode !== 'auction';
+  const inBag = canBuy && signedIn ? await isInBag(ctx, item.id) : false;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 lg:py-10">
@@ -143,16 +144,37 @@ export default async function ItemPage({ params, searchParams }: Params) {
                 </p>
               </>
             ) : canBuy ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <ButtonLink href={signedIn ? routes.checkout.listing(item.id) : routes.auth.signIn(routes.checkout.listing(item.id))} size="lg">
-                  Buy at listed price
-                </ButtonLink>
-                {item.saleMode === 'negotiable' && (
-                  <ButtonLink href={signedIn ? routes.itemOffer(item.id) : routes.auth.signIn(routes.itemOffer(item.id))} variant="secondary" size="lg">
-                    Make an offer
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <ButtonLink href={signedIn ? routes.checkout.listing(item.id) : routes.auth.signIn(routes.checkout.listing(item.id))} size="lg">
+                    Buy at listed price
                   </ButtonLink>
-                )}
-              </div>
+                  {!signedIn ? (
+                    <ButtonLink href={routes.auth.signIn(routes.item(item.id))} variant="secondary" size="lg">
+                      Add to bag
+                    </ButtonLink>
+                  ) : inBag ? (
+                    <ButtonLink href={routes.bag} variant="secondary" size="lg">
+                      In your bag — view bag
+                    </ButtonLink>
+                  ) : (
+                    <ActionForm action={addToBagAction} showSuccess={false}>
+                      <input type="hidden" name="listingId" value={item.id} />
+                      <SubmitButton variant="secondary" size="lg" className="w-full" pendingText="Adding…">
+                        Add to bag
+                      </SubmitButton>
+                    </ActionForm>
+                  )}
+                  {item.saleMode === 'negotiable' && (
+                    <ButtonLink href={signedIn ? routes.itemOffer(item.id) : routes.auth.signIn(routes.itemOffer(item.id))} variant="secondary" size="lg" className="sm:col-span-2">
+                      Make an offer
+                    </ButtonLink>
+                  )}
+                </div>
+                <p className="text-xs text-muted">
+                  Your bag doesn’t hold pieces — anyone can buy them until you pay. Pieces from the same shop can be paid for together and ship as one parcel.
+                </p>
+              </>
             ) : item.availability === 'reserved' ? (
               <Alert tone="warning" title="Reserved">Another buyer is checking out. If their payment doesn’t complete, the piece becomes available again.</Alert>
             ) : item.availability === 'scheduled' && item.dropAt ? (

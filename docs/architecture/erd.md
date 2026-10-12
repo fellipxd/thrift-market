@@ -24,7 +24,8 @@ erDiagram
     auctions ||--o{ bids : receives
     listings ||--o{ offer_threads : negotiations
     offer_threads ||--o{ offers : versions
-    reservations ||--o| orders : "one live order"
+    reservations ||--o| orders : "dedicated hold (single-hold orders)"
+    reservations ||--o| order_items : "hold per item"
     orders ||--|{ order_items : "snapshots"
     orders ||--o{ payment_attempts : pays
     orders ||--o| shipments : ships
@@ -37,9 +38,11 @@ erDiagram
     conversations ||--o{ messages : contains
     users ||--o{ follows : follows
     users ||--o{ saved_items : saves
+    users ||--o{ bag_items : "bag (interest only)"
     shops ||--o{ ad_campaigns : promotes
 ```
 
 Integrity highlights: stock CHECK invariant; one active reservation per (source, source_id); one live order per
-reservation; one succeeded payment attempt per order; one payout per order; one review per order item; one active
+dedicated hold (`orders.reservation_id`, single-hold orders); every order item carries its own hold and a pending
+order's holds move together (ADR-0009); bag items never hold stock; one succeeded payment attempt per order; one payout per order; one review per order item; one active
 dispute per order; ledger transactions must balance (deferred trigger) and are append-only; audit events append-only.

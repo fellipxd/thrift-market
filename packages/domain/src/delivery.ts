@@ -127,6 +127,32 @@ export function deliveryOptionsFor(args: {
   return options;
 }
 
+/**
+ * Options for one combined shipment of several pieces from the same shop: only methods every piece supports, at
+ * the highest quoted fee and the longest dispatch/transit among them (one parcel, one delivery fee). Coverage and
+ * zone fees are per shop, so pieces normally quote the same; per-listing destination limits can remove a method.
+ */
+export function combineDeliveryOptions(perItem: readonly DeliveryOption[][]): DeliveryOption[] {
+  if (perItem.length === 0) return [];
+  const [first, ...rest] = perItem;
+  const combined: DeliveryOption[] = [];
+  for (const base of first!) {
+    const same = rest.map((opts) => opts.find((o) => o.method === base.method));
+    if (same.some((o) => !o)) continue;
+    const all = [base, ...(same as DeliveryOption[])];
+    const priciest = all.reduce((a, b) => (b.feeMinor > a.feeMinor ? b : a));
+    combined.push({
+      ...priciest,
+      feeMinor: priciest.feeMinor,
+      transitDaysMin: Math.max(...all.map((o) => o.transitDaysMin)),
+      transitDaysMax: Math.max(...all.map((o) => o.transitDaysMax)),
+      dispatchDays: Math.max(...all.map((o) => o.dispatchDays)),
+      protectionEligible: all.every((o) => o.protectionEligible),
+    });
+  }
+  return combined;
+}
+
 export function pickDeliveryOption(options: DeliveryOption[], method: DeliveryMethod): DeliveryOption {
   const opt = options.find((o) => o.method === method);
   if (!opt) throw new DomainError('NOT_DELIVERABLE', 'This delivery option is not available for your address.');

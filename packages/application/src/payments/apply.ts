@@ -4,7 +4,8 @@ import type { VerifyPaymentResult } from '@thrift/providers';
 import { recordAudit } from '../core/audit';
 import type { AppContext } from '../core/context';
 import { enqueue } from '../core/outbox';
-import { convertReservation, lockReservation, lockStock } from '../inventory/authority';
+import { enqueueReservationReleased, orderHolds } from '../checkout/holds';
+import { convertReservation, lockReservation, lockStock, releaseReservation, type Reservation } from '../inventory/authority';
 import { postLedgerTransaction, type LedgerLine } from '../ledger/ledger';
 import { notifyUser } from '../notifications/notify';
 import { findAttemptByReference, type PaymentAttemptRow } from './attempts';
@@ -42,7 +43,6 @@ interface OrderRow {
   shop_id: string;
   source: string;
   source_id: string | null;
-  reservation_id: string | null;
   status: string;
   payment_status: string;
   items_total_minor: number;
@@ -113,15 +113,13 @@ export async function applyVerifiedPayment(ctx: AppContext, reference: string): 
 
 async function captureSucceededPayment(ctx: AppContext, attempt: PaymentAttemptRow, verified: VerifyPaymentResult): Promise<ApplyResult> {
   const orderId = attempt.order_id!;
-  const peek = await one<{ reservation_id: string | null; listing_id: string }>(
-    ctx.pool,
-    `SELECT o.reservation_id, oi.listing_id FROM orders o JOIN order_items oi ON oi.order_id = o.id WHERE o.id = $1 LIMIT 1`,
-    [orderId],
-  );
+  const holds = await orderHolds(ctx.pool, orderId);
   return withTransaction(ctx.pool, async (tx) => {
-    // Lock order: inventory_stock → reservations → orders → payment_attempts → payouts.
-    await lockStock(tx, peek.listing_id);
-    if (peek.reservation_id) await lockReservation(tx, peek.reservation_id);
+    // Lock order: inventory_stock (listing-id order) → reservations → orders → payment_attempts → payouts.
+    const stock = new Map<string, number>();
+    for (const h of holds) stock.set(h.listingId, (await lockStock(tx, h.listingId)).quantityAvailable);
+    const reservations: Reservation[] = [];
+    for (const h of holds) if (h.reservationId) reservations.push(await lockReservation(tx, h.reservationId));
     const order = await one<OrderRow>(tx, 'SELECT * FROM orders WHERE id = $1 FOR UPDATE', [orderId]);
     const a = await one<PaymentAttemptRow>(tx, 'SELECT * FROM payment_attempts WHERE id = $1 FOR UPDATE', [attempt.id]);
     if (a.status === 'succeeded' || a.status === 'duplicate') return { outcome: 'already_applied' as const, orderId };
@@ -154,7 +152,22 @@ async function captureSucceededPayment(ctx: AppContext, attempt: PaymentAttemptR
       });
       return { outcome: 'duplicate_refunded' as const, orderId };
     }
-    const conversion = order.reservation_id ? await convertReservation(tx, order.reservation_id) : { converted: false, reallocated: false };
+    // All or none: every piece must still be held (or be re-allocatable from free stock after a late payment);
+    // otherwise no piece is sold and the whole payment is refunded — a child is never dropped after payment.
+    const convertible =
+      holds.length > 0 &&
+      reservations.length === holds.length &&
+      reservations.every((r) => r.status === 'converted' || r.status === 'active' || r.status === 'payment_pending' || (stock.get(r.listing_id) ?? 0) >= r.quantity);
+    const conversion = { converted: convertible, reallocated: false };
+    if (convertible) {
+      for (const r of reservations) conversion.reallocated = (await convertReservation(tx, r.id)).reallocated || conversion.reallocated;
+    } else {
+      for (const r of reservations) {
+        if (r.status !== 'active' && r.status !== 'payment_pending') continue;
+        const rel = await releaseReservation(tx, r.id, { reason: 'order_unavailable_at_payment' });
+        if (rel.released) await enqueueReservationReleased(tx, r.id);
+      }
+    }
     await tx.query(`UPDATE payment_attempts SET status = 'succeeded', succeeded_at = $2, provider_transaction_id = $3, updated_at = now() WHERE id = $1`, [
       a.id,
       verified.paidAt ?? ctx.now(),
@@ -173,7 +186,10 @@ async function captureSucceededPayment(ctx: AppContext, attempt: PaymentAttemptR
         paymentAttemptId: a.id,
         amountMinor: a.amount_minor,
         reason: 'late_payment_after_release',
-        note: 'Payment arrived after the reservation was released and the item was no longer available.',
+        note:
+          holds.length > 1
+            ? 'Payment arrived after the hold was released and at least one piece was no longer available.'
+            : 'Payment arrived after the reservation was released and the item was no longer available.',
         autoApprove: true,
         idempotencyKey: `late:${a.id}`,
       });
@@ -185,8 +201,11 @@ async function captureSucceededPayment(ctx: AppContext, attempt: PaymentAttemptR
         userId: order.buyer_user_id,
         topic: 'transactional',
         kind: 'late_payment_refund',
-        title: `Order ${order.number}: item no longer available`,
-        body: 'The item was no longer available when your payment arrived. A full refund has been started.',
+        title: holds.length > 1 ? `Order ${order.number}: pieces no longer available` : `Order ${order.number}: item no longer available`,
+        body:
+          holds.length > 1
+            ? 'At least one piece was no longer available when your payment arrived, so none were sold. A full refund has been started.'
+            : 'The item was no longer available when your payment arrived. A full refund has been started.',
         link: `/orders/${orderId}`,
         dedupeKey: `late-refund:${a.id}`,
       });
@@ -237,6 +256,8 @@ async function captureSucceededPayment(ctx: AppContext, attempt: PaymentAttemptR
       link: `/sell/orders/${orderId}`,
       dedupeKey: `order-paid-seller:${orderId}`,
     });
+    // Bought pieces leave the buyer's bag (the bag never held them).
+    await tx.query('DELETE FROM bag_items WHERE user_id = $1 AND listing_id = ANY($2::uuid[])', [order.buyer_user_id, holds.map((h) => h.listingId)]);
     await enqueue(tx, { topic: 'order.paid', aggregateId: orderId, payload: { orderId, source: order.source, sourceId: order.source_id }, dedupeKey: `order.paid:${orderId}` });
     return { outcome: conversion.reallocated ? ('late_reallocated' as const) : ('paid' as const), orderId };
   });

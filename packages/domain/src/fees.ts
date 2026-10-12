@@ -1,4 +1,4 @@
-import { applyBps, addMoney } from './money';
+import { addMoney, apportionMinor, applyBps } from './money';
 
 /**
  * Commission, buyer fee and payer are open owner decisions (D05). Defaults are zero and
@@ -21,17 +21,41 @@ export interface OrderTotals {
   sellerProceedsMinor: number;
 }
 
-export function computeOrderTotals(args: {
+export interface OrderLine {
   unitPriceMinor: number;
   quantity: number;
-  shippingMinor: number;
-  fees: FeeSettings;
-  shippingPaidToSeller: boolean;
-}): OrderTotals {
-  const itemsTotalMinor = args.unitPriceMinor * args.quantity;
+}
+
+/**
+ * Totals for one order: one or more lines from the same seller, one delivery fee for the shipment, and fees on the
+ * items total (so a combined order never pays a flat fee per piece).
+ */
+export function computeOrderTotals(
+  args: ({ lines: readonly OrderLine[] } | OrderLine) & { shippingMinor: number; fees: FeeSettings; shippingPaidToSeller: boolean },
+): OrderTotals {
+  const lines = 'lines' in args ? args.lines : [{ unitPriceMinor: args.unitPriceMinor, quantity: args.quantity }];
+  const itemsTotalMinor = addMoney(...lines.map((l) => l.unitPriceMinor * l.quantity));
   const buyerFeeMinor = addMoney(applyBps(itemsTotalMinor, args.fees.buyerFeeBps), args.fees.buyerFeeFlatMinor);
   const commissionMinor = applyBps(itemsTotalMinor, args.fees.commissionBps);
   const totalMinor = addMoney(itemsTotalMinor, args.shippingMinor, buyerFeeMinor);
   const sellerProceedsMinor = itemsTotalMinor - commissionMinor + (args.shippingPaidToSeller ? args.shippingMinor : 0);
   return { itemsTotalMinor, shippingMinor: args.shippingMinor, buyerFeeMinor, totalMinor, commissionMinor, sellerProceedsMinor };
+}
+
+export interface LineShares {
+  shippingShareMinor: number;
+  buyerFeeShareMinor: number;
+  commissionShareMinor: number;
+}
+
+/**
+ * Frozen per-line split of the order-level delivery fee, buyer fee and commission, weighted by each line's items
+ * total (largest remainder). Stored with the order so a later partial refund uses the split the buyer accepted.
+ */
+export function apportionOrderTotals(totals: Pick<OrderTotals, 'shippingMinor' | 'buyerFeeMinor' | 'commissionMinor'>, lines: readonly OrderLine[]): LineShares[] {
+  const weights = lines.map((l) => l.unitPriceMinor * l.quantity);
+  const shipping = apportionMinor(totals.shippingMinor, weights);
+  const buyerFee = apportionMinor(totals.buyerFeeMinor, weights);
+  const commission = apportionMinor(totals.commissionMinor, weights);
+  return lines.map((_, i) => ({ shippingShareMinor: shipping[i]!, buyerFeeShareMinor: buyerFee[i]!, commissionShareMinor: commission[i]! }));
 }

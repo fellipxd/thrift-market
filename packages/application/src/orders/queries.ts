@@ -2,6 +2,7 @@ import { DELIVERY_METHOD_LABEL, DomainError, TRACKING_CONFIDENCE_LABEL, type Del
 import { many, maybeOne, one, type Queryable } from '@thrift/database';
 import { requireOwnShop, requireStaff, requireUser } from '../core/authz';
 import type { AppContext } from '../core/context';
+import { orderHoldState } from '../checkout/holds';
 import { mediaPath } from '../media/media';
 import { ledgerBalances, unbalancedLedgerTransactions, type LedgerBalance } from '../ledger/ledger';
 
@@ -56,6 +57,8 @@ export interface OrderListItem {
   fulfilmentStatus: string;
   fulfilmentLabel: string;
   counterpart: string;
+  /** Pieces in the order (a bag checkout can hold several from one shop). */
+  itemCount: number;
 }
 
 interface ListRow {
@@ -68,6 +71,7 @@ interface ListRow {
   payment_status: string;
   fulfilment_status: string;
   counterpart: string;
+  item_count: number;
   [k: string]: unknown;
 }
 
@@ -87,6 +91,7 @@ function toListItem(r: ListRow): OrderListItem {
     fulfilmentStatus: r.fulfilment_status,
     fulfilmentLabel: FULFILMENT_STATUS_LABEL[r.fulfilment_status] ?? r.fulfilment_status,
     counterpart: r.counterpart,
+    itemCount: r.item_count,
   };
 }
 
@@ -107,9 +112,9 @@ export async function buyerOrders(ctx: AppContext, opts: { cursor?: string | nul
   const cur = decodeCursor(opts.cursor);
   const rows = await many<ListRow>(
     ctx.pool,
-    `SELECT o.id, o.number, o.created_at, oi.snapshot, o.total_minor, o.status, o.payment_status, o.fulfilment_status, s.name AS counterpart
+    `SELECT o.id, o.number, o.created_at, oi.snapshot, oi.item_count, o.total_minor, o.status, o.payment_status, o.fulfilment_status, s.name AS counterpart
        FROM orders o JOIN shops s ON s.id = o.shop_id
-       JOIN LATERAL (SELECT snapshot FROM order_items WHERE order_id = o.id ORDER BY created_at LIMIT 1) oi ON true
+       JOIN LATERAL (SELECT snapshot, count(*) OVER ()::int AS item_count FROM order_items WHERE order_id = o.id ORDER BY created_at, id LIMIT 1) oi ON true
       WHERE o.buyer_user_id = $1 ${cur ? 'AND (o.created_at, o.id) < ($2::timestamptz, $3::uuid)' : ''}
       ORDER BY o.created_at DESC, o.id DESC LIMIT ${cur ? '$4' : '$2'}`,
     cur ? [user.userId, cur.createdAt, cur.id, 21] : [user.userId, 21],
@@ -140,9 +145,9 @@ export async function sellerOrders(ctx: AppContext, opts: { filter?: string | nu
   params.push(31);
   const rows = await many<ListRow>(
     ctx.pool,
-    `SELECT o.id, o.number, o.created_at, oi.snapshot, o.total_minor, o.status, o.payment_status, o.fulfilment_status, u.display_name AS counterpart
+    `SELECT o.id, o.number, o.created_at, oi.snapshot, oi.item_count, o.total_minor, o.status, o.payment_status, o.fulfilment_status, u.display_name AS counterpart
        FROM orders o JOIN users u ON u.id = o.buyer_user_id
-       JOIN LATERAL (SELECT snapshot FROM order_items WHERE order_id = o.id ORDER BY created_at LIMIT 1) oi ON true
+       JOIN LATERAL (SELECT snapshot, count(*) OVER ()::int AS item_count FROM order_items WHERE order_id = o.id ORDER BY created_at, id LIMIT 1) oi ON true
       WHERE o.shop_id = $1 AND ${where[filter]} ${cursorSql}
       ORDER BY o.created_at DESC, o.id DESC LIMIT $${params.length}`,
     params,
@@ -204,13 +209,13 @@ export interface OrderDetail {
 }
 
 const EVENT_LABEL: Record<string, string> = {
-  order_created: 'Order placed — item reserved for you',
+  order_created: 'Order placed — reserved for you while you pay',
   payment_confirmed: 'Payment confirmed by the payment provider',
-  payment_confirmed_late_reallocated: 'Late payment confirmed — item was still available',
+  payment_confirmed_late_reallocated: 'Late payment confirmed — still available',
   payment_failed: 'Payment attempt not completed',
   hold_expired: 'Reservation expired before payment',
   buyer_cancelled_unpaid: 'Cancelled before payment',
-  late_payment_refunded: 'Payment arrived after the item was gone — refund started',
+  late_payment_refunded: 'Payment arrived after the hold ended and a piece was gone — refund started',
   refund_created: 'Refund started',
   refund_succeeded: 'Refund confirmed by the payment provider',
   seller_cancelled: 'Cancelled by the seller',
@@ -235,7 +240,7 @@ export async function getOrderDetail(ctx: AppContext, orderId: string): Promise<
     fulfilment_status: string; payout_status: string; dispute_status: string; source: string; cancel_reason: string | null;
     items_total_minor: number; shipping_minor: number; buyer_fee_minor: number; total_minor: number; commission_minor: number;
     delivery_method: DeliveryMethod; delivery_terms: Record<string, unknown>; shipping_address: Record<string, string | null> | null;
-    policy_versions: Record<string, { version: string; title: string }>; reservation_id: string | null;
+    policy_versions: Record<string, { version: string; title: string }>;
     shop_name: string; shop_slug: string; buyer_name: string; is_member: boolean; [k: string]: unknown;
   }>(
     ctx.pool,
@@ -248,12 +253,12 @@ export async function getOrderDetail(ctx: AppContext, orderId: string): Promise<
   const viewer: 'buyer' | 'seller' = o.buyer_user_id === user.userId ? 'buyer' : 'seller';
   const items = await many<{ listing_id: string; quantity: number; unit_price_minor: number; snapshot: Record<string, unknown> }>(
     ctx.pool,
-    'SELECT listing_id, quantity, unit_price_minor, snapshot FROM order_items WHERE order_id = $1 ORDER BY created_at',
+    'SELECT listing_id, quantity, unit_price_minor, snapshot FROM order_items WHERE order_id = $1 ORDER BY created_at, id',
     [o.id],
   );
-  const reservation = o.reservation_id
-    ? await maybeOne<{ expires_at: Date; status: string }>(ctx.pool, 'SELECT expires_at, status FROM reservations WHERE id = $1', [o.reservation_id])
-    : null;
+  // The order's holds behave as one: the earliest deadline applies to every piece.
+  const hold = await orderHoldState(ctx.pool, o.id);
+  const reservation = hold.expiresAt && hold.status ? { expires_at: hold.expiresAt, status: hold.status } : null;
   const latest = await maybeOne<{ status: string; authorization_url: string | null }>(
     ctx.pool,
     'SELECT status, authorization_url FROM payment_attempts WHERE order_id = $1 ORDER BY created_at DESC LIMIT 1',

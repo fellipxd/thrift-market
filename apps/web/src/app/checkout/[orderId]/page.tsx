@@ -26,23 +26,38 @@ export default async function PendingPaymentPage({ params }: { params: Promise<{
   if (o.viewer !== 'buyer' || o.status !== 'pending_payment') redirect(o.viewer === 'buyer' ? routes.order(o.id) : routes.sell.order(o.id));
   const holdActive = !!o.reservation && ['active', 'payment_pending'].includes(o.reservation.status) && new Date(o.reservation.expiresAt) > new Date(o.serverNow);
   const item = o.items[0];
+  const several = o.items.length > 1;
   return (
     <div className="mx-auto max-w-xl px-4 py-6">
       <PageHeader eyebrow={`Order ${o.number}`} title="Complete your payment" />
       <Card className="space-y-4 p-4">
         <div>
-          <p className="font-semibold">{item?.title}</p>
-          <p className="text-sm text-muted">from {o.shop.name}</p>
+          {several ? (
+            <ul className="space-y-0.5" aria-label="Pieces in this order">
+              {o.items.map((it) => (
+                <li key={it.listingId} className="flex justify-between gap-3 text-sm">
+                  <span className="min-w-0 font-semibold">
+                    {it.title}
+                    {it.quantity > 1 ? ` × ${it.quantity}` : ''}
+                  </span>
+                  <span className="shrink-0 tabular-nums">{formatNaira(it.unitPriceMinor * it.quantity)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="font-semibold">{item?.title}</p>
+          )}
+          <p className="text-sm text-muted">from {o.shop.name}{several ? ' · shipped together' : ''}</p>
         </div>
         <dl className="space-y-1 text-sm">
-          <div className="flex justify-between"><dt className="text-muted">Item{o.items.length > 1 || (item && item.quantity > 1) ? 's' : ''}</dt><dd>{formatNaira(o.totals.itemsTotalMinor)}</dd></div>
+          <div className="flex justify-between"><dt className="text-muted">Item{several || (item && item.quantity > 1) ? 's' : ''}</dt><dd>{formatNaira(o.totals.itemsTotalMinor)}</dd></div>
           <div className="flex justify-between"><dt className="text-muted">Delivery · {o.delivery.methodLabel}</dt><dd>{o.totals.shippingMinor === 0 ? 'Free' : formatNaira(o.totals.shippingMinor)}</dd></div>
           {o.totals.buyerFeeMinor > 0 && <div className="flex justify-between"><dt className="text-muted">Buyer fee</dt><dd>{formatNaira(o.totals.buyerFeeMinor)}</dd></div>}
           <div className="flex justify-between border-t border-line pt-2 text-base font-semibold"><dt>Total</dt><dd>{formatNaira(o.totals.totalMinor)}</dd></div>
         </dl>
         {o.reservation && holdActive ? (
           <Alert tone="info" title="Held for you">
-            Pay within <Countdown target={o.reservation.expiresAt} serverNow={o.serverNow} expiredText="— the hold has ended" /> to keep this piece.
+            Pay within <Countdown target={o.reservation.expiresAt} serverNow={o.serverNow} expiredText="— the hold has ended" /> to keep {several ? 'these pieces' : 'this piece'}.
             {o.reservation.status === 'payment_pending' && ' Your payment is being confirmed, so we’ve extended the hold.'}
           </Alert>
         ) : (
@@ -69,7 +84,9 @@ export default async function PendingPaymentPage({ params }: { params: Promise<{
         </div>
         <ActionForm action={cancelPendingOrderAction} refreshOnSuccess={false} className="border-t border-line pt-4">
           <input type="hidden" name="orderId" value={o.id} />
-          <p className="mb-2 text-sm text-muted">Changed your mind? Cancelling releases the hold so someone else can buy it.</p>
+          <p className="mb-2 text-sm text-muted">
+            Changed your mind? Cancelling releases the hold so someone else can buy {several ? 'these pieces' : 'it'}.
+          </p>
           <SubmitButton variant="ghost" pendingText="Cancelling…">Cancel this order</SubmitButton>
         </ActionForm>
       </Card>

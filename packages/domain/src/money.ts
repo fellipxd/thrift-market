@@ -45,6 +45,34 @@ export function applyBps(amountMinor: number, bps: number): number {
   return Math.floor((amountMinor * bps + 5_000) / 10_000);
 }
 
+/**
+ * Splits a non-negative amount across non-negative integer weights by largest remainder (integer arithmetic only).
+ * Shares always sum exactly to the total; equal remainders go to the earlier weight, so the split is deterministic.
+ * All-zero weights split evenly.
+ */
+export function apportionMinor(totalMinor: number, weights: readonly number[]): number[] {
+  assertMinor(totalMinor);
+  if (totalMinor < 0) throw new DomainError('VALIDATION_FAILED', 'Only a non-negative amount can be apportioned');
+  if (weights.length === 0) throw new DomainError('VALIDATION_FAILED', 'Apportioning needs at least one share');
+  for (const w of weights) {
+    if (!Number.isSafeInteger(w) || w < 0) throw new DomainError('VALIDATION_FAILED', 'Apportioning weights must be non-negative integers');
+  }
+  const ws = weights.some((w) => w > 0) ? weights.map(BigInt) : weights.map(() => 1n);
+  const sum = ws.reduce((a, b) => a + b, 0n);
+  const total = BigInt(totalMinor);
+  const base = ws.map((w) => (total * w) / sum);
+  const rem = ws.map((w, i) => ({ i, r: (total * w) % sum }));
+  let left = Number(total - base.reduce((a, b) => a + b, 0n));
+  rem.sort((a, b) => (a.r === b.r ? a.i - b.i : a.r > b.r ? -1 : 1));
+  const shares = base.map(Number);
+  for (const { i } of rem) {
+    if (left <= 0) break;
+    shares[i]! += 1;
+    left -= 1;
+  }
+  return shares;
+}
+
 const nairaFormatter = new Intl.NumberFormat('en-NG', {
   style: 'currency',
   currency: 'NGN',

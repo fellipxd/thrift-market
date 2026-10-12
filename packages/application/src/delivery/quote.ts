@@ -1,4 +1,4 @@
-import { deliveryOptionsFor, DomainError, type DeliveryOption, type ShopCoverage } from '@thrift/domain';
+import { combineDeliveryOptions, deliveryOptionsFor, DomainError, type DeliveryOption, type ShopCoverage } from '@thrift/domain';
 import { maybeOne, type Queryable } from '@thrift/database';
 
 export interface DeliveryContext {
@@ -97,4 +97,14 @@ export async function quoteDeliveryOptions(
         }
       : null,
   });
+}
+
+/** Options for shipping several pieces from one shop together as one parcel with one delivery fee. */
+export async function quoteGroupDeliveryOptions(
+  db: Queryable,
+  args: { listingIds: readonly string[]; destination: { state: string; city: string }; courierProvider?: string },
+): Promise<DeliveryOption[]> {
+  const perItem: DeliveryOption[][] = [];
+  for (const listingId of args.listingIds) perItem.push(await quoteDeliveryOptions(db, { listingId, destination: args.destination, courierProvider: args.courierProvider }));
+  return combineDeliveryOptions(perItem);
 }
