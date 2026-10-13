@@ -169,11 +169,22 @@ export async function actOnReport(ctx: AppContext, raw: unknown): Promise<{ repo
   const staff = requireStaff(ctx, 'trust_safety', 'admin');
   const input = parseInput(actOnReportInput, raw);
   return withTransaction(ctx.pool, async (tx) => {
-    const report = await maybeOne<{ id: string; target_kind: ReportKind; target_id: string; status: string }>(tx, 'SELECT id, target_kind, target_id, status FROM reports WHERE id = $1 FOR UPDATE', [input.reportId]);
+    const report = await maybeOne<{ id: string; target_kind: ReportKind; target_id: string; status: string; reporter_user_id: string }>(
+      tx,
+      'SELECT id, target_kind, target_id, status, reporter_user_id FROM reports WHERE id = $1 FOR UPDATE',
+      [input.reportId],
+    );
     if (!report) throw new DomainError('NOT_FOUND', 'Report not found.');
     if (report.status !== 'open') throw new DomainError('INVALID_STATE', 'This report has already been handled.');
     if (!ACTIONS_FOR[report.target_kind].includes(input.action)) throw new DomainError('VALIDATION_FAILED', 'That action doesn’t apply to this kind of report.');
     const target = await resolveTarget(tx, report.target_kind, report.target_id, null);
+    // Conflict of interest: nobody handles a report they filed or one about their own account, shop or content.
+    const involved =
+      report.reporter_user_id === staff.userId ||
+      target?.ownerUserId === staff.userId ||
+      (report.target_kind === 'user' && report.target_id === staff.userId) ||
+      (!!target?.shopId && !!(await maybeOne(tx, 'SELECT 1 AS ok FROM shop_members WHERE shop_id = $1 AND user_id = $2', [target.shopId, staff.userId])));
+    if (involved) throw new DomainError('FORBIDDEN', 'You filed this report or it concerns you, so another team member must handle it.');
     let actionId: string | null = null;
     const record = async (kind: string, id: string, action: string) => {
       const m = await one<{ id: string }>(

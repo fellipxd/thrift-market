@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { idempotencyKey, minorAmount, uuid } from './common';
+import { idempotencyKey, minorAmount, nairaInput, uuid } from './common';
 
 export const DELIVERY_METHODS = ['integrated', 'seller_arranged', 'pickup'] as const;
 
@@ -82,9 +82,10 @@ export const REFUND_REASONS = [
 ] as const;
 export type RefundReason = (typeof REFUND_REASONS)[number];
 
+/** Staff goodwill/exception refund outside a dispute; a different finance team member must approve it. */
 export const staffRefundInput = z.object({
-  orderId: uuid,
-  amountMinor: z.coerce.number().int().positive(),
+  orderNumber: z.string({ message: 'Enter the order number.' }).trim().toUpperCase().regex(/^TM\d+$/, 'Order numbers look like TM1234.'),
+  amount: nairaInput.pipe(z.number().int().positive('Enter an amount above ₦0')),
   note: z.string().trim().min(10, 'Explain the exception (at least 10 characters).').max(1000),
 });
 

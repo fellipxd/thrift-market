@@ -13,7 +13,7 @@ import {
 import { assertTransition, DISPUTE_STATUS, DomainError, formatNaira, type DisputeStatus } from '@thrift/domain';
 import { isUniqueViolation, many, maybeOne, one, withTransaction, type Queryable } from '@thrift/database';
 import { recordAudit } from '../core/audit';
-import { requireStaff, requireUser } from '../core/authz';
+import { assertNotPartyToOrder, requireStaff, requireUser } from '../core/authz';
 import type { AppContext } from '../core/context';
 import { getSettings } from '../core/settings';
 import { parseInput } from '../core/validation';
@@ -363,6 +363,7 @@ export async function decideDispute(ctx: AppContext, raw: unknown): Promise<{ di
     if (d.status === 'appealed' && d.decided_by === staff.userId) {
       throw new DomainError('FORBIDDEN', 'An appeal must be decided by a different team member than the original decision.');
     }
+    await assertNotPartyToOrder(tx, staff.userId, order.id);
     const refundable = await refundableMinor(tx, order.id);
     if (input.outcome === 'partial_refund' && input.refundAmount! > refundable) {
       throw new DomainError('VALIDATION_FAILED', `At most ${formatNaira(refundable)} can still be refunded.`, { fieldErrors: { refundAmount: `At most ${formatNaira(refundable)}.` } });

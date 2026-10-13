@@ -418,12 +418,78 @@ export interface FinanceOverview {
   failedWebhooks: { id: string; provider: string; eventType: string; attempts: number; lastError: string | null; receivedAt: string }[];
   ledger: LedgerBalance[];
   unbalanced: { transactionId: string; sumMinor: number }[];
+  /** Cross-checks between payment, refund and payout records and the ledger; each should be empty. */
+  reconciliation: ReconciliationCheck[];
+}
+
+export interface ReconciliationCheck {
+  key: string;
+  label: string;
+  count: number;
+  samples: string[];
+}
+
+/**
+ * Finance reconciliation (R23): money records that should have a ledger posting but don't, and the reverse kind of
+ * drift (paid orders without a captured payment, more refunded than captured, sellers paid on fully refunded orders).
+ */
+export async function financeReconciliation(db: Queryable): Promise<ReconciliationCheck[]> {
+  const checks: { key: string; label: string; sql: string }[] = [
+    {
+      key: 'capture_without_ledger',
+      label: 'Confirmed payments with no ledger capture',
+      sql: `SELECT coalesce(o.number, pa.reference) AS sample FROM payment_attempts pa LEFT JOIN orders o ON o.id = pa.order_id
+             WHERE pa.purpose = 'order' AND pa.status IN ('succeeded','duplicate')
+               AND NOT EXISTS (SELECT 1 FROM ledger_transactions t WHERE t.idempotency_key = 'capture:' || pa.id)`,
+    },
+    {
+      key: 'refund_without_ledger',
+      label: 'Confirmed refunds with no ledger posting',
+      sql: `SELECT o.number AS sample FROM refunds r JOIN orders o ON o.id = r.order_id
+             WHERE r.status = 'succeeded' AND NOT EXISTS (SELECT 1 FROM ledger_transactions t WHERE t.idempotency_key = 'refund:' || r.id)`,
+    },
+    {
+      key: 'payout_without_ledger',
+      label: 'Paid payouts with no ledger posting',
+      sql: `SELECT o.number AS sample FROM payouts p JOIN orders o ON o.id = p.order_id
+             WHERE p.status = 'paid' AND NOT EXISTS (SELECT 1 FROM ledger_transactions t WHERE t.idempotency_key = 'payout:' || p.id)`,
+    },
+    {
+      key: 'paid_without_payment',
+      label: 'Orders marked paid without a confirmed payment',
+      sql: `SELECT o.number AS sample FROM orders o
+             WHERE o.payment_status IN ('paid','refund_pending','partially_refunded','refunded') AND o.paid_at IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM payment_attempts pa WHERE pa.order_id = o.id AND pa.status = 'succeeded')`,
+    },
+    {
+      key: 'over_refunded',
+      label: 'Payments with more refunded (or in flight) than was captured',
+      sql: `SELECT coalesce(o.number, pa.reference) AS sample FROM payment_attempts pa LEFT JOIN orders o ON o.id = pa.order_id
+             WHERE pa.status IN ('succeeded','duplicate')
+               AND (SELECT coalesce(sum(r.amount_minor), 0) FROM refunds r WHERE r.payment_attempt_id = pa.id AND r.status NOT IN ('rejected','failed')) > pa.amount_minor`,
+    },
+    {
+      key: 'paid_out_and_refunded',
+      label: 'Sellers paid on orders that were then refunded in full (needs recovery)',
+      sql: `SELECT o.number AS sample FROM orders o JOIN payouts p ON p.order_id = o.id
+             WHERE p.status = 'paid'
+               AND (SELECT coalesce(sum(r.amount_minor), 0) FROM refunds r WHERE r.order_id = o.id AND r.status = 'succeeded'
+                      AND r.reason NOT IN ('late_payment_after_release','duplicate_payment')) >= o.total_minor`,
+    },
+  ];
+  const out: ReconciliationCheck[] = [];
+  for (const c of checks) {
+    const n = await one<{ n: number }>(db, `SELECT count(*)::int AS n FROM (${c.sql}) x`);
+    const samples = n.n ? (await many<{ sample: string }>(db, `${c.sql} LIMIT 5`)).map((r) => r.sample) : [];
+    out.push({ key: c.key, label: c.label, count: n.n, samples });
+  }
+  return out;
 }
 
 export async function financeOverview(ctx: AppContext): Promise<FinanceOverview> {
   requireStaff(ctx, 'finance', 'admin');
   const db: Queryable = ctx.pool;
-  const [unresolved, awaiting, inflight, payouts, webhooks, ledger, unbalanced] = await Promise.all([
+  const [unresolved, awaiting, inflight, payouts, webhooks, ledger, unbalanced, reconciliation] = await Promise.all([
     many<{ reference: string; number: string | null; status: string; amount_minor: number; created_at: Date; failure_reason: string | null }>(
       db,
       `SELECT pa.reference, coalesce(o.number, CASE WHEN pa.purpose = 'ad_campaign' THEN 'Promotion' END) AS number, pa.status, pa.amount_minor, pa.created_at, pa.failure_reason FROM payment_attempts pa LEFT JOIN orders o ON o.id = pa.order_id
@@ -451,6 +517,7 @@ export async function financeOverview(ctx: AppContext): Promise<FinanceOverview>
     ),
     ledgerBalances(db),
     unbalancedLedgerTransactions(db),
+    financeReconciliation(db),
   ]);
   return {
     unresolvedAttempts: unresolved.map((a) => ({ reference: a.reference, orderNumber: a.number, status: a.status, amountMinor: a.amount_minor, createdAt: new Date(a.created_at).toISOString(), failureReason: a.failure_reason })),
@@ -460,5 +527,6 @@ export async function financeOverview(ctx: AppContext): Promise<FinanceOverview>
     failedWebhooks: webhooks.map((w) => ({ id: w.id, provider: w.provider, eventType: w.event_type, attempts: w.attempts, lastError: w.last_error, receivedAt: new Date(w.received_at).toISOString() })),
     ledger,
     unbalanced,
+    reconciliation,
   };
 }

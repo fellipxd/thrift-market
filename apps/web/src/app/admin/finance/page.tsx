@@ -33,6 +33,21 @@ export default async function FinancePage() {
       ) : (
         <Alert tone="success">Ledger balanced: every transaction sums to zero.</Alert>
       )}
+      <CardSection title="Reconciliation">
+        <p className="mb-3 text-sm text-muted">Money records checked against the ledger. Every line should read 0; anything else needs investigating before payouts are released.</p>
+        <ul className="divide-y divide-line border-y border-line text-sm" aria-label="Reconciliation checks">
+          {f.reconciliation.map((c) => (
+            <li key={c.key} className="flex items-start justify-between gap-3 py-2">
+              <span>
+                {c.label}
+                {c.samples.length > 0 && <span className="block text-xs text-muted">e.g. {c.samples.join(', ')}</span>}
+              </span>
+              <Badge tone={c.count === 0 ? 'success' : 'error'}>{c.count}</Badge>
+            </li>
+          ))}
+        </ul>
+      </CardSection>
+
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label="Held at provider" value={formatNaira(clearing)} hint="Provider clearing balance" />
         <StatTile label="Owed to sellers" value={formatNaira(owedToSellers)} hint="Seller payable (not yet paid out)" />

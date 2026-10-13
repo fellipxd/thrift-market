@@ -1,8 +1,8 @@
-import { refundDecisionInput, type RefundReason } from '@thrift/contracts';
+import { refundDecisionInput, staffRefundInput, type RefundReason } from '@thrift/contracts';
 import { DomainError } from '@thrift/domain';
 import { many, maybeOne, one, withTransaction, type Queryable } from '@thrift/database';
 import { recordAudit } from '../core/audit';
-import { requireStaff } from '../core/authz';
+import { assertNotPartyToOrder, requireStaff } from '../core/authz';
 import type { AppContext } from '../core/context';
 import { enqueue } from '../core/outbox';
 import { parseInput } from '../core/validation';
@@ -118,6 +118,30 @@ export async function createRefund(
   return refund;
 }
 
+/**
+ * Support/finance raise an exception refund on a paid order (goodwill, a problem outside the dispute rules). It
+ * waits for a different finance/admin team member to approve it; staff who bought or sold the order can't raise it.
+ */
+export async function requestStaffRefund(ctx: AppContext, raw: unknown): Promise<{ refundId: string; orderId: string; status: string }> {
+  const staff = requireStaff(ctx, 'support', 'finance', 'admin');
+  const input = parseInput(staffRefundInput, raw);
+  return withTransaction(ctx.pool, async (tx) => {
+    const o = await maybeOne<{ id: string; status: string }>(tx, 'SELECT id, status FROM orders WHERE number = $1 FOR UPDATE', [input.orderNumber]);
+    if (!o) throw new DomainError('NOT_FOUND', 'No order has that number.', { fieldErrors: { orderNumber: 'Not found' } });
+    await assertNotPartyToOrder(tx, staff.userId, o.id);
+    const refund = await createRefund(tx, ctx, {
+      orderId: o.id,
+      amountMinor: input.amount,
+      reason: 'staff_exception',
+      note: input.note,
+      requestedBy: staff.userId,
+      autoApprove: false,
+      idempotencyKey: `staff-exception:${o.id}:${input.amount}:${staff.userId}:${ctx.now().getTime()}`,
+    });
+    return { refundId: refund.id, orderId: o.id, status: refund.status };
+  });
+}
+
 /** Finance decision on a requested refund. Staff-exception refunds must be approved by someone other than the requester. */
 export async function decideRefund(ctx: AppContext, raw: unknown): Promise<{ refundId: string; status: string }> {
   const staff = requireStaff(ctx, 'finance', 'admin');
@@ -130,6 +154,7 @@ export async function decideRefund(ctx: AppContext, raw: unknown): Promise<{ ref
       if (FOUR_EYES_REASONS.has(r.reason) && r.requested_by === staff.userId) {
         throw new DomainError('FORBIDDEN', 'A different finance team member must approve an exception you requested.');
       }
+      if (r.order_id) await assertNotPartyToOrder(tx, staff.userId, r.order_id);
       await tx.query(`UPDATE refunds SET status = 'approved', approved_by = $2, updated_at = now() WHERE id = $1`, [r.id, staff.userId]);
       await enqueue(tx, { topic: 'refund.approved', aggregateId: r.id, dedupeKey: `refund.approved:${r.id}` });
     } else {

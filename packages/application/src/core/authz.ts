@@ -34,6 +34,20 @@ export function requireStaff(ctx: AppContext, ...roles: StaffRole[]): UserActor 
   return user;
 }
 
+/**
+ * Conflict of interest: staff never decide money or moderation outcomes on an order they bought or sold (as a
+ * member of the selling shop). Another team member has to handle it.
+ */
+export async function assertNotPartyToOrder(db: Queryable, staffUserId: string, orderId: string): Promise<void> {
+  const party = await maybeOne(
+    db,
+    `SELECT 1 AS ok FROM orders o WHERE o.id = $1
+        AND (o.buyer_user_id = $2 OR EXISTS (SELECT 1 FROM shop_members m WHERE m.shop_id = o.shop_id AND m.user_id = $2))`,
+    [orderId, staffUserId],
+  );
+  if (party) throw new DomainError('FORBIDDEN', 'You’re the buyer or seller on this order, so another team member must handle it.');
+}
+
 export function requireSystem(ctx: AppContext): void {
   if (ctx.actor.kind !== 'system') throw new DomainError('FORBIDDEN', 'System task only.');
 }

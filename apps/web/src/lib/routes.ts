@@ -70,6 +70,7 @@ export const routes = {
     dispute: (disputeId: string) => `/admin/disputes/${disputeId}`,
     categories: '/admin/categories',
     finance: '/admin/finance',
+    refunds: '/admin/refunds',
     ads: '/admin/ads',
     reviews: '/admin/reviews',
     audit: '/admin/audit',

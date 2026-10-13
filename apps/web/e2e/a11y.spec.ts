@@ -153,7 +153,7 @@ test.describe('accessibility checks (T16, automated)', () => {
   test('staff console pages', async ({ page }, info) => {
     test.skip(info.project.name !== 'desktop', 'The staff console is checked once (desktop) to keep two-step sign-ins few.');
     await signInStaff(page, 'admin@demo.thrift.test', '/admin');
-    for (const path of ['/admin', '/admin/operations', '/admin/finance', '/admin/reports', '/admin/disputes', '/admin/reviews', '/admin/ads', '/admin/verification', '/admin/categories', '/admin/settings', '/admin/staff', '/admin/audit']) {
+    for (const path of ['/admin', '/admin/operations', '/admin/finance', '/admin/refunds', '/admin/reports', '/admin/disputes', '/admin/reviews', '/admin/ads', '/admin/verification', '/admin/categories', '/admin/settings', '/admin/staff', '/admin/audit']) {
       await visit(page, path);
     }
   });

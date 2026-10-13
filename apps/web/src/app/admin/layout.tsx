@@ -19,6 +19,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: routes.admin.reviews, label: 'Review moderation' },
     { href: routes.admin.ads, label: 'Promotions' },
     { href: routes.admin.finance, label: 'Finance' },
+    { href: routes.admin.refunds, label: 'Exception refunds' },
     { href: routes.admin.categories, label: 'Categories' },
     { href: routes.admin.operations, label: 'Operations' },
     { href: routes.admin.audit, label: 'Audit log' },
