@@ -4,7 +4,7 @@ import { maybeOne, one } from '@thrift/database';
 import { ImageRejectedError, processImage } from '@thrift/providers';
 import { requireUser } from '../core/authz';
 import type { AppContext } from '../core/context';
-import { hmacHex } from '../core/ids';
+import { hmacHex, hmacHexMatches } from '../core/ids';
 import { enforceRateLimit } from '../core/rate-limit';
 import { getSettings } from '../core/settings';
 
@@ -29,8 +29,11 @@ export interface MediaAsset {
   visibility: 'public' | 'restricted';
 }
 
+const MAX_ALT_TEXT = 300;
+
 /**
- * Validates, normalises (strips EXIF/GPS) and stores an uploaded photo. Per-user upload quota applies.
+ * Validates, normalises (strips EXIF/GPS) and stores an uploaded photo. Per-user upload quota applies. The file is
+ * re-encoded, so whatever else was inside it (scripts, polyglot payloads, metadata) is never stored or served.
  */
 export async function uploadImage(
   ctx: AppContext,
@@ -55,7 +58,19 @@ export async function uploadImage(
   await ctx.pool.query(
     `INSERT INTO media_assets (id, owner_user_id, purpose, storage_key, mime_type, bytes, width, height, sha256, visibility, alt_text)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-    [id, user.userId, args.purpose, storageKey, processed.mime, processed.bytes, processed.width, processed.height, processed.sha256, visibility, args.altText ?? null],
+    [
+      id,
+      user.userId,
+      args.purpose,
+      storageKey,
+      processed.mime,
+      processed.bytes,
+      processed.width,
+      processed.height,
+      processed.sha256,
+      visibility,
+      args.altText?.trim().slice(0, MAX_ALT_TEXT) || null,
+    ],
   );
   return { id, storageKey, width: processed.width, height: processed.height, visibility };
 }
@@ -103,7 +118,7 @@ export async function resolveMediaRequest(
   if (asset.visibility === 'restricted') {
     const exp = Number(args.exp);
     if (!args.sig || !Number.isFinite(exp) || exp * 1000 < ctx.now().getTime()) return null;
-    if (hmacHex(ctx.config.appSecret, `${args.key}:${exp}`) !== args.sig) return null;
+    if (!hmacHexMatches(ctx.config.appSecret, `${args.key}:${exp}`, args.sig)) return null;
   }
   const data = await ctx.providers.storage.get(args.key);
   if (!data) return null;
