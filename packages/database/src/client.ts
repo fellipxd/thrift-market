@@ -25,6 +25,8 @@ export interface CreatePoolOptions {
   connectionString: string;
   max?: number;
   statementTimeoutMs?: number;
+  /** How long a request waits for a free connection before failing as "busy" (default 5 s). */
+  connectionTimeoutMs?: number;
   application_name?: string;
 }
 
@@ -33,7 +35,7 @@ export function createPool(opts: CreatePoolOptions): Pool {
     connectionString: opts.connectionString,
     max: opts.max ?? 10,
     idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 5_000,
+    connectionTimeoutMillis: opts.connectionTimeoutMs ?? 5_000,
     statement_timeout: opts.statementTimeoutMs ?? 15_000,
     application_name: opts.application_name ?? 'thrift',
   });
@@ -141,4 +143,15 @@ export function isCheckViolation(err: unknown, constraint?: string): boolean {
 
 export function isLockTimeout(err: unknown): boolean {
   return (err as { code?: string })?.code === '55P03';
+}
+
+/**
+ * The database is saturated rather than broken: no free pooled connection in time, too many connections, or a
+ * statement/lock timeout. Callers answer "busy, try again" (HTTP 503 + Retry-After) instead of an internal error.
+ */
+export function isOverloadError(err: unknown): boolean {
+  const e = err as { code?: string; message?: string } | null;
+  if (!e) return false;
+  if (e.code === '53300' || e.code === '57014' || e.code === '55P03') return true;
+  return /timeout exceeded when trying to connect|Connection terminated due to connection timeout/i.test(e.message ?? '');
 }

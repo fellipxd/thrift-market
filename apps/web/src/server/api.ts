@@ -2,6 +2,7 @@ import 'server-only';
 import { NextResponse, type NextRequest } from 'next/server';
 import { HTTP_STATUS, isDomainError } from '@thrift/domain';
 import { resolveSession, SESSION_COOKIE, type AppContext } from '@thrift/application';
+import { isOverloadError } from '@thrift/database';
 import { services } from './services';
 
 type RouteParams = Record<string, string | string[]>;
@@ -35,6 +36,13 @@ export function apiRoute<P extends RouteParams = RouteParams>(
       }
       if (err instanceof SyntaxError) {
         return json({ error: { code: 'VALIDATION_FAILED', message: 'Malformed JSON body.' } }, 400, requestId);
+      }
+      if (isOverloadError(err)) {
+        // Saturated, not broken: shed the request with a retry hint (and keep the log line short).
+        console.warn(`[api] busy ${req.method} ${req.nextUrl.pathname} request=${requestId}: ${(err as Error).message}`);
+        const res = json({ error: { code: 'BUSY', message: 'We’re very busy right now. Please try again in a moment.', details: { requestId } } }, 503, requestId);
+        res.headers.set('Retry-After', '5');
+        return res;
       }
       console.error(`[api] ${req.method} ${req.nextUrl.pathname} request=${requestId}`, err);
       return json({ error: { code: 'INTERNAL', message: 'Unexpected server error.', details: { requestId } } }, 500, requestId);

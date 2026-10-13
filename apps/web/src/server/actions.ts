@@ -1,4 +1,5 @@
 import 'server-only';
+import { isOverloadError } from '@thrift/database';
 import { isDomainError } from '@thrift/domain';
 import type { AppContext } from '@thrift/application';
 import { getCtx } from './session';
@@ -36,6 +37,10 @@ export function toErrorState(err: unknown, requestId?: string): Extract<ActionSt
       message: err.message,
       fieldErrors: fieldErrors ?? (issues ? Object.fromEntries(issues.map((i) => [i.field, i.message])) : undefined),
     };
+  }
+  if (isOverloadError(err)) {
+    console.warn(`[action] busy request=${requestId ?? '-'}: ${(err as Error).message}`);
+    return { status: 'error', code: 'BUSY', message: 'We’re very busy right now. Nothing was changed — please try again in a moment.' };
   }
   console.error(`[action] unexpected error request=${requestId ?? '-'}`, err);
   return { status: 'error', code: 'INTERNAL', message: `Something went wrong on our side. Please try again. (ref ${requestId ?? 'n/a'})` };

@@ -53,6 +53,10 @@ nothing about staging capacity, which needs real hardware, several web processes
 | bids | 50 bids/s, 50 auctions, 200 bidders | p95 17 ms, 2,983 accepted, 16 too-low; invariants hold |
 | hot-item | 200 buyers at once | 1 order, 199 `STOCK_CONFLICT`, stock balanced; p95 517 ms (all 200 queue for 30 connections) |
 
+**Overload behaviour (2026-10-13):** with a one-connection web pool and the auctions table locked for 12 s, 19 of 20
+concurrent API requests got `503 BUSY` with `Retry-After: 5` (one short log line each) instead of `500`, and requests
+succeeded again as soon as the lock cleared. Form submissions show “busy, nothing was changed”.
+
 **Watch items for the staging run:**
 
 - Relevance-ranked text search scores every match (60–130 ms here, where the synthetic catalogue's small vocabulary
