@@ -41,6 +41,11 @@ pnpm dev:worker                 # background worker (reservations, auctions, pay
 If `pnpm db:migrate` or `pnpm db:reseed` can't connect, it prints what went wrong and what to run (for example
 "PostgreSQL rejected the password": another PostgreSQL is probably using port 5432).
 
+Demo items use generated illustrations. For real photographs, run `pnpm --filter @thrift/application demo-photos`
+and then `pnpm db:reseed`: it downloads public-domain / CC0 photos from [Openverse](https://openverse.org) into
+`assets/demo-photos/` with a `manifest.json` and `CREDITS.md` recording each image's source and licence (needs internet
+access to api.openverse.org and the image hosts). Look through them before committing; flaw close-ups stay illustrated.
+
 Demo password for all demo accounts: `thrift-demo-pass` (e.g. `buyer@demo.thrift.test`, `amina@demo.thrift.test`,
 `admin@demo.thrift.test`). Staff tools ask for a two-step code: the demo staff accounts (admin@, finance@, support@)
 are enrolled with the development-only authenticator secret `JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP` — add it to any

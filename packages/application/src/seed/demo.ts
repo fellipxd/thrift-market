@@ -5,6 +5,7 @@ import type { ObjectStorage } from '@thrift/providers';
 import { hashPassword } from '../identity/passwords';
 import { encryptSecret } from '../identity/totp';
 import { illustration, type IllustrationShape } from './illustrations';
+import { loadDemoPhotos } from './photos';
 
 /**
  * Demo data for local development and E2E tests. All names, shops and items are ILLUSTRATIVE.
@@ -59,6 +60,15 @@ interface DemoShop {
   verified: boolean;
   coverage: { scope: 'local' | 'states' | 'national'; states: string[]; integrated: boolean; pickup: boolean };
   items: DemoItem[];
+}
+
+/** Demo item titles with a photo search phrase (for the demo photo fetcher). */
+export function demoPhotoSubjects(): { title: string; query: string; fallback: string }[] {
+  const fallbackWords: Record<IllustrationShape, string> = {
+    shirt: 'shirt', dress: 'dress', trousers: 'trousers', jacket: 'jacket', sneaker: 'sneakers', heel: 'high heels', bag: 'handbag',
+    hat: 'hat', belt: 'leather belt', scarf: 'scarf', watch: 'wristwatch',
+  };
+  return SHOPS.flatMap((s) => s.items.map((i) => ({ title: i.title, query: i.title.toLowerCase(), fallback: fallbackWords[i.shape] ?? i.shape })));
 }
 
 const SHOPS: DemoShop[] = [
@@ -179,6 +189,8 @@ export async function seedDemo(pool: Pool, storage: ObjectStorage, categories: M
     log('demo data already present; skipping');
     return;
   }
+  const photos = loadDemoPhotos();
+  log(photos.size ? `using demo photos for ${photos.size} items (assets/demo-photos)` : 'no demo photos fetched; using illustrations');
   const pw = await hashPassword(DEMO_PASSWORD);
   const adminId = await ensureUser(pool, DEMO_ACCOUNTS.admin, 'Ada Admin (demo)', pw);
   const financeId = await ensureUser(pool, DEMO_ACCOUNTS.finance, 'Femi Finance (demo)', pw);
@@ -258,9 +270,13 @@ export async function seedDemo(pool: Pool, storage: ObjectStorage, categories: M
       );
       const photoCount = 3 + (item.flaws?.length ? 1 : 0);
       const media: { id: string; key: string }[] = [];
+      // Real demo photos (when fetched) fill the front/back/detail slots; the flaw close-up stays illustrative so it
+      // never shows a different garment's flaw.
+      const real = (photos.get(item.title) ?? []).slice(0, 3);
       for (let p = 0; p < photoCount; p++) {
-        const img = await illustration(item.shape, item.colour, p);
-        media.push(await storeImage(pool, storage, ownerId, img, `${item.title} — illustrative photo ${p + 1}`));
+        const photo = p < photoCount - (item.flaws?.length ? 1 : 0) ? real[p] : undefined;
+        const img = photo ? photo.buffer : await illustration(item.shape, item.colour, p);
+        media.push(await storeImage(pool, storage, ownerId, img, `${item.title} — ${photo ? 'demo' : 'illustrative'} photo ${p + 1}`));
       }
       const roles = ['front', 'back', 'detail', 'flaw'];
       for (const [pos, m] of media.entries()) {

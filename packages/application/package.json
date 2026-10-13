@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "tsc --noEmit -p tsconfig.json",
     "seed": "tsx src/seed/cli.ts",
-    "load": "tsx src/load/cli.ts"
+    "load": "tsx src/load/cli.ts",
+    "demo-photos": "tsx src/seed/fetch-photos.ts"
   },
   "dependencies": {
     "@thrift/contracts": "workspace:*",
