@@ -11,7 +11,7 @@ import { CheckboxField, TextAreaField } from '@/components/ui/Field';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { routes } from '@/lib/routes';
 import { getCtx, requireUserPage } from '@/server/session';
-import { sellerCancelAction } from './actions';
+import { sellerCancelAction, sellerCancelItemsAction } from './actions';
 import { SellerFulfilmentPanel } from './fulfilment-panel';
 
 export const metadata = { title: 'Order' };
@@ -27,7 +27,8 @@ export default async function SellerOrderPage({ params }: { params: Promise<{ id
     throw err;
   }
   if (order.viewer !== 'seller') redirect(routes.order(order.id));
-  const canCancel = order.status === 'confirmed' && order.paymentStatus === 'paid' && order.fulfilmentStatus === 'awaiting_dispatch';
+  const canCancel = order.status === 'confirmed' && ['paid', 'refund_pending', 'partially_refunded'].includes(order.paymentStatus) && order.fulfilmentStatus === 'awaiting_dispatch';
+  const activeItems = order.items.filter((it) => !it.cancelledAt);
   return (
     <div className="space-y-5">
       <PageHeader
@@ -52,12 +53,37 @@ export default async function SellerOrderPage({ params }: { params: Promise<{ id
           <SellerFulfilmentPanel order={order} />
           <OrderItems order={order} />
           <OrderDelivery order={order} />
+          {canCancel && activeItems.length > 1 && (
+            <CardSection title="Can’t send some pieces?">
+              <ActionForm action={sellerCancelItemsAction} className="space-y-3">
+                <input type="hidden" name="orderId" value={order.id} />
+                <p className="text-sm text-muted">
+                  The buyer is refunded each cancelled piece’s price and its share of any buyer fee; delivery isn’t refunded because the rest still ships.
+                  It counts as a seller cancellation on your shop’s service record.
+                </p>
+                <fieldset className="space-y-2">
+                  <legend className="mb-1 text-sm font-semibold">Pieces to cancel</legend>
+                  {activeItems.map((it) => (
+                    <CheckboxField
+                      key={it.orderItemId}
+                      name="orderItemIds"
+                      value={it.orderItemId}
+                      label={`${it.title}${it.quantity > 1 ? ` × ${it.quantity}` : ''} — ${formatNaira(it.unitPriceMinor * it.quantity)}`}
+                    />
+                  ))}
+                </fieldset>
+                <TextAreaField label="Reason (shared with the buyer)" name="reason" required rows={2} />
+                <CheckboxField label="Put the pieces back on sale" name="restock" defaultChecked hint="Untick if they’re damaged or no longer available." />
+                <SubmitButton variant="danger" pendingText="Cancelling…">Cancel these pieces and refund</SubmitButton>
+              </ActionForm>
+            </CardSection>
+          )}
           {canCancel && (
             <CardSection title="Can’t fulfil this order?">
               <ActionForm action={sellerCancelAction} className="space-y-3">
                 <input type="hidden" name="orderId" value={order.id} />
                 <p className="text-sm text-muted">
-                  Cancelling refunds the buyer in full and counts as a seller cancellation on your shop’s service record. Only cancel if you genuinely can’t send the item.
+                  Cancelling refunds the buyer {activeItems.length < order.items.length ? 'everything not yet refunded' : 'in full'} and counts as a seller cancellation on your shop’s service record. Only cancel if you genuinely can’t send the item.
                 </p>
                 <TextAreaField label="Reason (shared with the buyer)" name="reason" required rows={3} />
                 <CheckboxField label="Put the item back on sale" name="restock" defaultChecked hint="Untick if the item is damaged or no longer available." />

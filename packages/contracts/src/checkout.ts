@@ -57,9 +57,20 @@ export const sellerCancelInput = z.object({
   restock: z.preprocess((v) => v === true || v === 'true' || v === 'on', z.boolean()).default(false),
 });
 
+/** Seller cancels some pieces of a paid multi-piece order before dispatch (the rest still ships). */
+export const sellerCancelItemsInput = z.object({
+  orderId: uuid,
+  orderItemIds: z
+    .preprocess((v) => (typeof v === 'string' ? v.split(',').filter(Boolean) : v), z.array(uuid).min(1, 'Choose the pieces to cancel.').max(50))
+    .refine((ids) => new Set(ids).size === ids.length, 'Each piece can be chosen once.'),
+  reason: z.string({ message: 'Tell the buyer why.' }).trim().min(10, 'Give a short reason (at least 10 characters).').max(500),
+  restock: z.preprocess((v) => v === true || v === 'true' || v === 'on', z.boolean()).default(false),
+});
+
 export const REFUND_REASONS = [
   'buyer_cancelled',
   'seller_cancelled',
+  'seller_cancelled_items',
   'dispute_upheld',
   'late_payment_after_release',
   'duplicate_payment',

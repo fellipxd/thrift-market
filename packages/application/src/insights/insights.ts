@@ -43,7 +43,7 @@ export async function sellerInsights(ctx: AppContext, periodDays: number = 30): 
     one<{ paid: number; items: number; gross: number; refunds: number; cancels: number }>(
       db,
       `SELECT (SELECT count(*) FROM orders o WHERE o.shop_id = $1 AND o.paid_at >= ${sinceTs})::int AS paid,
-              (SELECT coalesce(sum(oi.quantity),0) FROM order_items oi JOIN orders o ON o.id = oi.order_id WHERE o.shop_id = $1 AND o.paid_at >= ${sinceTs})::int AS items,
+              (SELECT coalesce(sum(oi.quantity),0) FROM order_items oi JOIN orders o ON o.id = oi.order_id WHERE o.shop_id = $1 AND o.paid_at >= ${sinceTs} AND oi.cancelled_at IS NULL)::int AS items,
               (SELECT coalesce(sum(o.items_total_minor),0) FROM orders o WHERE o.shop_id = $1 AND o.paid_at >= ${sinceTs})::bigint AS gross,
               (SELECT coalesce(sum(r.amount_minor),0) FROM refunds r JOIN orders o ON o.id = r.order_id
                 WHERE o.shop_id = $1 AND r.status = 'succeeded' AND r.confirmed_at >= ${sinceTs} AND r.reason NOT IN ('late_payment_after_release','duplicate_payment'))::bigint AS refunds,
@@ -103,7 +103,7 @@ export async function sellerInsights(ctx: AppContext, periodDays: number = 30): 
               coalesce(sum(d.views),0)::int AS views, coalesce(sum(d.saves),0)::int AS saves,
               coalesce(sum(d.messages),0)::int AS messages, coalesce(sum(d.offers),0)::int AS offers,
               (SELECT coalesce(sum(oi.quantity),0) FROM order_items oi JOIN orders o ON o.id = oi.order_id
-                WHERE oi.listing_id = l.id AND o.paid_at >= ${sinceTs})::int AS sold
+                WHERE oi.listing_id = l.id AND o.paid_at >= ${sinceTs} AND oi.cancelled_at IS NULL)::int AS sold
          FROM listings l LEFT JOIN listing_daily_stats d ON d.listing_id = l.id AND d.day >= ${sinceDay}
         WHERE l.shop_id = $1 AND l.status <> 'draft'
         GROUP BY l.id

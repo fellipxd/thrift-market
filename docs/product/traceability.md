@@ -50,7 +50,9 @@ pending for every row (stage 3 gate).
   and a per-shop checkout that holds every piece or none, in listing-id lock order, with the confirmed prices; the pending
   order is the checkout group and every item has its own hold, so expiry, cancel, retry, late payment and seller
   cancellation act on the whole group (never a partial sale). One parcel and one delivery fee per order; weight-based
-  courier pricing is not modelled yet (D09). Partial per-item refunds are not built (the split is frozen for them).
+  courier pricing is not modelled yet (D09). Sellers can cancel some pieces before dispatch: the buyer gets each piece's
+  price and frozen buyer-fee share back (delivery stays, the rest still ships), the ledger and payout use the frozen
+  split exactly, and cancelling the last pieces refunds what is left including delivery (migration 0920).
 - **Lock order (doc 06): decided — ADR-0008.** The build keeps its consistent auction → offer thread → stock order;
   deadlock freedom comes from consistency, and every path that touches both takes the auction first.
 - **Auction custody (doc 06): verified and tightened.** Enforced through fixed sale mode, guarded seller edits and

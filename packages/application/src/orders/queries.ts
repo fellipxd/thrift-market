@@ -182,7 +182,11 @@ export interface OrderDetail {
   shop: { id: string; name: string; slug: string };
   buyerName: string;
   items: {
+    orderItemId: string;
     listingId: string;
+    /** Set when the seller cancelled and refunded this piece before dispatch. */
+    cancelledAt: string | null;
+    cancelReason: string | null;
     title: string;
     quantity: number;
     unitPriceMinor: number;
@@ -219,6 +223,7 @@ const EVENT_LABEL: Record<string, string> = {
   refund_created: 'Refund started',
   refund_succeeded: 'Refund confirmed by the payment provider',
   seller_cancelled: 'Cancelled by the seller',
+  seller_cancelled_items: 'Some pieces cancelled by the seller — refund started',
   payout_released: 'Seller paid',
   dispatched: 'Dispatched by the seller',
   dispatch_late: 'Dispatch is late',
@@ -251,9 +256,9 @@ export async function getOrderDetail(ctx: AppContext, orderId: string): Promise<
   );
   if (!o || (o.buyer_user_id !== user.userId && !o.is_member)) throw new DomainError('NOT_FOUND', 'Order not found.');
   const viewer: 'buyer' | 'seller' = o.buyer_user_id === user.userId ? 'buyer' : 'seller';
-  const items = await many<{ listing_id: string; quantity: number; unit_price_minor: number; snapshot: Record<string, unknown> }>(
+  const items = await many<{ id: string; listing_id: string; quantity: number; unit_price_minor: number; snapshot: Record<string, unknown>; cancelled_at: Date | null; cancel_reason: string | null }>(
     ctx.pool,
-    'SELECT listing_id, quantity, unit_price_minor, snapshot FROM order_items WHERE order_id = $1 ORDER BY created_at, id',
+    'SELECT id, listing_id, quantity, unit_price_minor, snapshot, cancelled_at, cancel_reason FROM order_items WHERE order_id = $1 ORDER BY created_at, id',
     [o.id],
   );
   // The order's holds behave as one: the earliest deadline applies to every piece.
@@ -299,7 +304,10 @@ export async function getOrderDetail(ctx: AppContext, orderId: string): Promise<
     items: items.map((i) => {
       const s = i.snapshot as { title?: string; conditionLabel?: string | null; sizeLabel?: string | null; flaws?: { description: string; location: string | null; severity: string }[]; flawsDeclaration?: string | null; measurements?: Record<string, number>; media?: string[]; listingVersion?: number | null };
       return {
+        orderItemId: i.id,
         listingId: i.listing_id,
+        cancelledAt: i.cancelled_at ? new Date(i.cancelled_at).toISOString() : null,
+        cancelReason: i.cancel_reason,
         title: s.title ?? 'Item',
         quantity: i.quantity,
         unitPriceMinor: i.unit_price_minor,

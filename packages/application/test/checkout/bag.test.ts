@@ -3,6 +3,9 @@ import { isDomainError } from '@thrift/domain';
 import {
   applyVerifiedPayment,
   cancelOrderBySeller,
+  cancelOrderItemsBySeller,
+  markDispatched,
+  processRefunds,
   cancelPendingOrder,
   expireReservations,
   getBag,
@@ -355,5 +358,89 @@ describe('same-seller bag checkout (doc 06 checkout group)', () => {
     expect(await stock(b.id)).toMatchObject({ quantity_sold: 0, quantity_available: 2 });
     const refund = (await testServices().pool.query(`SELECT amount_minor FROM refunds WHERE order_id = $1`, [s.orderId])).rows[0];
     expect(Number(refund.amount_minor)).toBe(s.totals.totalMinor);
+  });
+});
+
+describe('per-item cancellation and refund (seller, before dispatch)', () => {
+  it('refunds a piece at its price plus its frozen fee share, keeps delivery for the rest, then refunds what is left on full cancellation', async () => {
+    await setSetting('commission_bps', 1_000);
+    await setSetting('buyer_fee_bps', 200);
+    try {
+      const shop = await createShop();
+      const a = await createListing({ shop, priceMinor: 600_000 });
+      const b = await createListing({ shop, priceMinor: 300_000 });
+      const c = await createListing({ shop, priceMinor: 100_000 });
+      const { buyer, addressId } = await buyerWithAddress();
+      const s = await bagCheckout(buyer, addressId, shop.id, [
+        { id: a.id, price: 600_000 },
+        { id: b.id, price: 300_000 },
+        { id: c.id, price: 100_000 },
+      ]);
+      await pay(systemCtx(), s.orderId);
+      const { pool } = testServices();
+      const items = (await pool.query('SELECT id, listing_id, buyer_fee_share_minor, commission_share_minor FROM order_items WHERE order_id = $1', [s.orderId])).rows;
+      const itemB = items.find((i) => i.listing_id === b.id)!;
+      const payoutBefore = Number((await pool.query('SELECT amount_minor FROM payouts WHERE order_id = $1', [s.orderId])).rows[0].amount_minor);
+
+      // Another seller can't touch it; the buyer can't either.
+      const other = await createShop();
+      await expect(cancelOrderItemsBySeller(other.owner.ctx, { orderId: s.orderId, orderItemIds: [itemB.id], reason: 'Not my order at all' })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+      await expect(cancelOrderItemsBySeller(buyer.ctx, { orderId: s.orderId, orderItemIds: [itemB.id], reason: 'Not my order at all' })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+
+      const one = await cancelOrderItemsBySeller(shop.owner.ctx, { orderId: s.orderId, orderItemIds: [itemB.id], reason: 'Found a tear while packing', restock: true });
+      expect(one.wholeOrder).toBe(false);
+      const refund = (await pool.query('SELECT amount_minor, reason, status, allocation FROM refunds WHERE id = $1', [one.refundId])).rows[0];
+      const fee = Number(itemB.buyer_fee_share_minor);
+      const commission = Number(itemB.commission_share_minor);
+      expect(fee).toBeGreaterThan(0);
+      expect(Number(refund.amount_minor)).toBe(300_000 + fee);
+      expect(refund).toMatchObject({ reason: 'seller_cancelled_items', status: 'approved' });
+      expect(refund.allocation).toEqual({ sellerMinor: 300_000 - commission, commissionMinor: commission, feesMinor: fee, courierMinor: 0 });
+      expect(await stock(b.id)).toMatchObject({ quantity_sold: 0, quantity_available: 1 });
+      expect(await stock(a.id)).toMatchObject({ quantity_sold: 1 });
+      expect(await orderRow(s.orderId)).toMatchObject({ status: 'confirmed', fulfilment_status: 'awaiting_dispatch' });
+      await expect(cancelOrderItemsBySeller(shop.owner.ctx, { orderId: s.orderId, orderItemIds: [itemB.id], reason: 'Found a tear while packing' })).rejects.toMatchObject({ code: 'CONFLICT' });
+
+      await processRefunds(systemCtx());
+      expect(Number((await pool.query('SELECT amount_minor FROM payouts WHERE order_id = $1', [s.orderId])).rows[0].amount_minor)).toBe(payoutBefore - (300_000 - commission));
+      expect((await orderRow(s.orderId)).payment_status).toBe('partially_refunded');
+      const detail = await getOrderDetail(buyer.ctx, s.orderId);
+      expect(detail.items.find((i) => i.listingId === b.id)!.cancelledAt).not.toBeNull();
+      expect(await unbalancedLedgerTransactions(pool)).toEqual([]);
+
+      // Cancelling every remaining piece is a whole-order cancellation that refunds exactly what is left (incl. delivery).
+      const rest = items.filter((i) => i.listing_id !== b.id).map((i) => i.id);
+      const all = await cancelOrderItemsBySeller(shop.owner.ctx, { orderId: s.orderId, orderItemIds: rest, reason: 'Shop closing for the season', restock: true });
+      expect(all.wholeOrder).toBe(true);
+      await processRefunds(systemCtx());
+      const refunded = Number((await pool.query(`SELECT sum(amount_minor)::bigint AS s FROM refunds WHERE order_id = $1 AND status = 'succeeded'`, [s.orderId])).rows[0].s);
+      expect(refunded).toBe(s.totals.totalMinor);
+      expect(await orderRow(s.orderId)).toMatchObject({ status: 'cancelled', payout_status: 'reversed' });
+      expect((await pool.query('SELECT status FROM payouts WHERE order_id = $1', [s.orderId])).rows[0].status).toBe('cancelled');
+      expect(await unbalancedLedgerTransactions(pool)).toEqual([]);
+      const balances = (await pool.query(
+        `SELECT account, sum(amount_minor)::bigint AS s FROM ledger_entries e JOIN ledger_transactions t ON t.id = e.transaction_id WHERE t.order_id = $1 GROUP BY account`,
+        [s.orderId],
+      )).rows;
+      for (const row of balances) expect(Number(row.s)).toBe(0);
+    } finally {
+      await setSetting('commission_bps', 0);
+      await setSetting('buyer_fee_bps', 0);
+    }
+  });
+
+  it('is refused once the order has been dispatched', async () => {
+    const shop = await createShop();
+    const a = await createListing({ shop });
+    const b = await createListing({ shop });
+    const { buyer, addressId } = await buyerWithAddress();
+    const s = await bagCheckout(buyer, addressId, shop.id, [
+      { id: a.id, price: 850_000 },
+      { id: b.id, price: 850_000 },
+    ]);
+    await pay(systemCtx(), s.orderId);
+    await markDispatched(shop.owner.ctx, { orderId: s.orderId, carrierName: 'Rider' });
+    const itemId = (await testServices().pool.query('SELECT id FROM order_items WHERE order_id = $1 LIMIT 1', [s.orderId])).rows[0].id;
+    await expect(cancelOrderItemsBySeller(shop.owner.ctx, { orderId: s.orderId, orderItemIds: [itemId], reason: 'Changed my mind late' })).rejects.toMatchObject({ code: 'INVALID_STATE' });
   });
 });

@@ -11,10 +11,15 @@ export function OrderItems({ order }: { order: OrderDetail }) {
     <CardSection title="What was ordered">
       <ul className="space-y-4">
         {order.items.map((it) => (
-          <li key={it.listingId} className="flex gap-3">
+          <li key={it.orderItemId} className={`flex gap-3 ${it.cancelledAt ? 'opacity-70' : ''}`}>
             <div className="h-24 w-20 flex-none overflow-hidden rounded-md bg-sand">{it.photoUrls[0] && <Photo src={it.photoUrls[0]} alt={it.title} className="h-full w-full" />}</div>
             <div className="min-w-0 text-sm">
-              <Link href={routes.item(it.listingId)} className="font-semibold text-ink hover:underline">{it.title}</Link>
+              <Link href={routes.item(it.listingId)} className={`font-semibold text-ink hover:underline ${it.cancelledAt ? 'line-through' : ''}`}>{it.title}</Link>
+              {it.cancelledAt && (
+                <p className="label-caps mt-0.5 text-accent">
+                  Cancelled by the seller — refunded{it.cancelReason ? ` · ${it.cancelReason.replace(/^seller: /, '')}` : ''}
+                </p>
+              )}
               <p className="text-muted">
                 {[it.conditionLabel, it.sizeLabel, it.quantity > 1 ? `Qty ${it.quantity}` : null].filter(Boolean).join(' · ')} · {formatNaira(it.unitPriceMinor)}
                 {it.quantity > 1 ? ' each' : ''}

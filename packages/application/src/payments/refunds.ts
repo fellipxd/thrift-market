@@ -20,9 +20,18 @@ export interface RefundRow {
   status: 'requested' | 'approved' | 'processing' | 'succeeded' | 'failed' | 'rejected';
   requested_by: string | null;
   approved_by: string | null;
+  allocation: RefundAllocation | null;
   provider_reference: string | null;
   attempts: number;
   [k: string]: unknown;
+}
+
+/** How a refund comes out of each ledger account (sums to the refund amount). */
+export interface RefundAllocation {
+  sellerMinor: number;
+  commissionMinor: number;
+  feesMinor: number;
+  courierMinor: number;
 }
 
 /** Refund reasons that pay back money held in refunds_payable (it was never owed to the seller). */
@@ -48,11 +57,20 @@ export async function createRefund(
     requestedBy?: string | null;
     autoApprove: boolean;
     idempotencyKey: string;
+    /** Exact ledger split (e.g. from order items' frozen shares); must sum to amountMinor. */
+    allocation?: RefundAllocation | null;
   },
 ): Promise<RefundRow> {
   const existing = await maybeOne<RefundRow>(tx, 'SELECT * FROM refunds WHERE idempotency_key = $1', [args.idempotencyKey]);
   if (existing) return existing;
   if (!Number.isSafeInteger(args.amountMinor) || args.amountMinor <= 0) throw new DomainError('VALIDATION_FAILED', 'Refund amount must be positive.');
+  if (args.allocation) {
+    const a = args.allocation;
+    const parts = [a.sellerMinor, a.commissionMinor, a.feesMinor, a.courierMinor];
+    if (parts.some((x) => !Number.isSafeInteger(x) || x < 0) || parts.reduce((x, y) => x + y, 0) !== args.amountMinor) {
+      throw new DomainError('VALIDATION_FAILED', 'Refund allocation must be non-negative and add up to the refund amount.');
+    }
+  }
   const attempt = args.paymentAttemptId
     ? await maybeOne<{ id: string; amount_minor: number; status: string }>(tx, 'SELECT id, amount_minor, status FROM payment_attempts WHERE id = $1 AND order_id = $2', [
         args.paymentAttemptId,
@@ -79,9 +97,9 @@ export async function createRefund(
   const status = args.autoApprove && !FOUR_EYES_REASONS.has(args.reason) ? 'approved' : 'requested';
   const refund = await one<RefundRow>(
     tx,
-    `INSERT INTO refunds (order_id, payment_attempt_id, amount_minor, reason, note, status, requested_by, approved_by, idempotency_key)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, $8) RETURNING *`,
-    [args.orderId, attempt.id, args.amountMinor, args.reason, args.note ?? null, status, args.requestedBy ?? null, args.idempotencyKey],
+    `INSERT INTO refunds (order_id, payment_attempt_id, amount_minor, reason, note, status, requested_by, approved_by, idempotency_key, allocation)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, $8, $9) RETURNING *`,
+    [args.orderId, attempt.id, args.amountMinor, args.reason, args.note ?? null, status, args.requestedBy ?? null, args.idempotencyKey, args.allocation ? JSON.stringify(args.allocation) : null],
   );
   if (!BUYER_OWED_REASONS.has(args.reason)) {
     await tx.query(
@@ -156,6 +174,20 @@ async function refundLedgerLines(tx: Queryable, r: RefundRow): Promise<{ lines: 
   if (payout && (payout.status === 'paid' || payout.status === 'processing')) {
     // Seller already paid: the platform funds the refund and finance follows up (never a fictional balance).
     return { lines: [{ account: 'suspense', amountMinor: r.amount_minor }, credit], payoutAdjust: { cancel: false, reduceBy: 0 } };
+  }
+  if (r.allocation) {
+    // Exact split frozen at request time (per-item refunds): each account gives back what it received.
+    const a = r.allocation;
+    return {
+      lines: [
+        { account: 'seller_payable', amountMinor: a.sellerMinor, shopId: o.shop_id },
+        { account: 'platform_commission', amountMinor: a.commissionMinor },
+        { account: 'platform_fees', amountMinor: a.feesMinor },
+        { account: 'courier_payable', amountMinor: a.courierMinor },
+        credit,
+      ],
+      payoutAdjust: { cancel: false, reduceBy: a.sellerMinor },
+    };
   }
   if (priorRefunds.s === 0 && r.amount_minor === o.total_minor) {
     const proceeds = payout?.amount_minor ?? 0;

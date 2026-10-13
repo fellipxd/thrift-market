@@ -125,7 +125,7 @@ export async function bookCourier(ctx: AppContext, orderId: string, actorUserId:
     ctx.pool,
     `SELECT o.number, o.shipping_address, s.name AS shop_name, s.city AS shop_city, s.state AS shop_state, sh.quote_minor, sh.transit_days_min, sh.transit_days_max,
             -- One parcel per order: a bag order ships its pieces together (unknown weights count as 800 g each).
-            (SELECT sum(coalesce(l.weight_grams, 800) * oi.quantity)::int FROM order_items oi JOIN listings l ON l.id = oi.listing_id WHERE oi.order_id = o.id) AS weight
+            (SELECT sum(coalesce(l.weight_grams, 800) * oi.quantity)::int FROM order_items oi JOIN listings l ON l.id = oi.listing_id WHERE oi.order_id = o.id AND oi.cancelled_at IS NULL) AS weight
        FROM orders o JOIN shops s ON s.id = o.shop_id JOIN shipments sh ON sh.order_id = o.id WHERE o.id = $1`,
     [orderId],
   );

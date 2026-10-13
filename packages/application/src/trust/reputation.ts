@@ -21,7 +21,7 @@ export async function reputationInputs(db: Queryable, shopId: string): Promise<R
          WHERE o.shop_id = $1 AND o.dispatched_at IS NOT NULL AND sh.dispatch_by IS NOT NULL AND o.dispatched_at <= sh.dispatch_by)::int AS on_time,
        (SELECT count(*) FROM orders o JOIN shipments sh ON sh.order_id = o.id
          WHERE o.shop_id = $1 AND sh.dispatch_by IS NOT NULL AND (o.dispatched_at IS NOT NULL OR (sh.dispatch_by < now() AND o.status = 'confirmed')))::int AS measured,
-       (SELECT count(*) FROM order_events e JOIN orders o ON o.id = e.order_id WHERE o.shop_id = $1 AND e.kind = 'seller_cancelled')::int AS cancellations,
+       (SELECT count(DISTINCT e.order_id) FROM order_events e JOIN orders o ON o.id = e.order_id WHERE o.shop_id = $1 AND e.kind IN ('seller_cancelled','seller_cancelled_items'))::int AS cancellations,
        (SELECT count(*) FROM disputes d JOIN orders o ON o.id = d.order_id
          WHERE o.shop_id = $1 AND d.status = 'resolved' AND d.outcome IN ('full_refund','partial_refund','return_and_refund'))::int AS upheld`,
     [shopId],

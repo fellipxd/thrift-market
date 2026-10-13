@@ -23,6 +23,7 @@ interface EligibleItemRow {
   fulfilment_status: string;
   buyer_confirmed_at: Date | null;
   review_id: string | null;
+  item_cancelled_at?: Date | null;
   [k: string]: unknown;
 }
 
@@ -32,6 +33,7 @@ interface EligibleItemRow {
  */
 function eligibility(row: EligibleItemRow, windowDays: number, now: Date): { canReview: boolean; reason: string | null; windowEndsAt: Date | null } {
   if (row.review_id) return { canReview: false, reason: 'You’ve already reviewed this item.', windowEndsAt: null };
+  if (row.item_cancelled_at) return { canReview: false, reason: 'This piece was cancelled and refunded.', windowEndsAt: null };
   if (!['confirmed', 'completed'].includes(row.status)) return { canReview: false, reason: 'Only completed purchases can be reviewed.', windowEndsAt: null };
   const deliveredAt = row.buyer_confirmed_at ?? row.delivered_at;
   if (!deliveredAt || !(row.fulfilment_status === 'delivered' || row.buyer_confirmed_at)) {
@@ -44,7 +46,7 @@ function eligibility(row: EligibleItemRow, windowDays: number, now: Date): { can
 
 const ITEM_SQL = `
   SELECT oi.id AS order_item_id, o.id AS order_id, o.shop_id, coalesce(oi.snapshot->>'title', 'Item') AS title,
-         o.delivered_at, o.status, o.fulfilment_status, o.buyer_confirmed_at, rv.id AS review_id
+         o.delivered_at, o.status, o.fulfilment_status, o.buyer_confirmed_at, rv.id AS review_id, oi.cancelled_at AS item_cancelled_at
     FROM order_items oi JOIN orders o ON o.id = oi.order_id LEFT JOIN reviews rv ON rv.order_item_id = oi.id`;
 
 export interface ReviewView {
