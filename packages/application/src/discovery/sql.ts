@@ -19,6 +19,15 @@ export function publicListingSql(nowParam: string): string {
   return `(${LISTING_PUBLIC_WHERE} AND (l.sale_mode <> 'auction' OR (a.status IN ('scheduled','live') AND a.ends_at > ${nowParam})))`;
 }
 
+/**
+ * The same visibility as publicListingSql without the latest-auction join (aliases: l listings, s shops), for
+ * aggregates over the whole catalogue. Equivalent because a listing has at most one open auction
+ * (auctions_listing_open_uq), and the check only runs for auction listings.
+ */
+export function publicListingExistsSql(nowParam: string): string {
+  return `(${LISTING_PUBLIC_WHERE} AND (l.sale_mode <> 'auction' OR EXISTS (SELECT 1 FROM auctions ax WHERE ax.listing_id = l.id AND ax.status IN ('scheduled','live') AND ax.ends_at > ${nowParam})))`;
+}
+
 /** What a buyer would pay now: listed price, or the current bid / opening price for auctions. Integer kobo. */
 export const EFFECTIVE_PRICE_SQL = `coalesce(CASE WHEN l.sale_mode = 'auction' THEN coalesce(a.current_bid_minor, a.opening_price_minor) ELSE l.price_minor END, 0)`;
 

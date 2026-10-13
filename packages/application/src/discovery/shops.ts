@@ -39,23 +39,25 @@ export interface CoverageSummary {
  * auctions out of the active count and thumbnails.
  */
 export function shopSummaryColumns(nowParam: string): string {
-  const visible = (alias: string, auction: string) =>
-    `${alias}.status IN ('active','reserved') AND (${alias}.sale_mode <> 'auction' OR (${auction}.status IN ('scheduled','live') AND ${auction}.ends_at > ${nowParam}))`;
+  // Open auction for a listing (at most one: auctions_listing_open_uq), checked only for auction listings.
+  const liveAuction = (alias: string) =>
+    `EXISTS (SELECT 1 FROM auctions ax WHERE ax.listing_id = ${alias}.id AND ax.status IN ('scheduled','live') AND ax.ends_at > ${nowParam})`;
   return `
     s.id, s.slug, s.name, s.area, s.city, s.state, s.status AS shop_status, s.verification_status, s.verification_label,
     s.reputation_tier, s.review_count, s.rating_avg,
     dc.scope AS coverage_scope, dc.states AS coverage_states, dc.excluded_states AS coverage_excluded,
     dc.offers_pickup, dc.offers_seller_arranged, dc.offers_integrated,
     CASE WHEN s.status = 'active' THEN (
-      SELECT count(*)::int FROM listings la LEFT JOIN LATERAL (SELECT * FROM auctions ax WHERE ax.listing_id = la.id ORDER BY ax.created_at DESC LIMIT 1) aa ON true
-       WHERE la.shop_id = s.id AND la.status = 'active' AND ${visible('la', 'aa')}
-    ) ELSE 0 END AS active_count,
+      (SELECT count(*) FROM listings la WHERE la.shop_id = s.id AND la.status = 'active' AND la.sale_mode <> 'auction')
+      + (SELECT count(*) FROM auctions ax JOIN listings la ON la.id = ax.listing_id
+          WHERE ax.shop_id = s.id AND ax.status IN ('scheduled','live') AND ax.ends_at > ${nowParam} AND la.status = 'active' AND la.sale_mode = 'auction')
+    )::int ELSE 0 END AS active_count,
     CASE WHEN s.status = 'active' THEN ARRAY(
       SELECT ph.key FROM (
-        SELECT ${firstPhotoSql('lt')} AS key, coalesce(lt.published_at, lt.created_at) AS published, lt.id
-          FROM listings lt LEFT JOIN LATERAL (SELECT * FROM auctions ax WHERE ax.listing_id = lt.id ORDER BY ax.created_at DESC LIMIT 1) at2 ON true
-         WHERE lt.shop_id = s.id AND ${visible('lt', 'at2')}
-         ORDER BY published DESC, lt.id DESC
+        SELECT ${firstPhotoSql('lt')} AS key
+          FROM listings lt
+         WHERE lt.shop_id = s.id AND lt.status IN ('active','reserved') AND (lt.sale_mode <> 'auction' OR ${liveAuction('lt')})
+         ORDER BY lt.published_at DESC, lt.id DESC
          LIMIT 6
       ) ph WHERE ph.key IS NOT NULL LIMIT 3
     ) ELSE ARRAY[]::text[] END AS thumbnails`;

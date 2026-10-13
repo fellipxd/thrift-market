@@ -26,6 +26,9 @@ authenticator app. The seed never enrols it when `NODE_ENV=production`.
 If `pnpm dev` keeps reloading a page by itself (seen on slow or cold filesystems, where the file watcher misfires), stop it,
 delete `apps/web/.next/dev` and start it again.
 
+Tests: `pnpm test` (domain + application, against `thrift_test`), `pnpm test:e2e` (Playwright, both phone and desktop,
+including automated accessibility checks). Load scripts for the staging capacity gate: `docs/qa/load-testing.md`.
+
 See `AGENTS.md` for architecture rules and conventions, and `docs/` for product, design and decisions. The phase-0 design
 packet (requirements, journeys, transaction contracts and the owner-selected editorial art direction) is in
 `docs/product/phase-0/`; `docs/product/traceability.md` maps it to the code and lists known gaps.

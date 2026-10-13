@@ -8,7 +8,8 @@ import { followedShopsNewItems } from './collections';
 import { resolvePlaceInternal, type LocationPreference, type ResolvedPlace } from './location';
 import { shopSummaryColumns, toShopSummary, NEG_REPUTATION_KEY_SQL, type ShopSummary, type ShopSummaryRow } from './shops';
 import { interleaveSponsored, rotationOrderSql, sponsoredListingSql } from './sponsored';
-import { pointSql, publicListingSql, PUBLISHED_AT_SQL, SqlParams } from './sql';
+import { memoPublic } from '../core/memo';
+import { pointSql, publicListingExistsSql, publicListingSql, PUBLISHED_AT_SQL, SqlParams } from './sql';
 
 export interface CategoryShortcut {
   slug: string;
@@ -121,8 +122,12 @@ async function nearYouCards(ctx: AppContext, now: Date, place: ResolvedPlace): P
   });
 }
 
-/** Top-level categories with counts of public listings in the category or any descendant. */
+/** Top-level categories with counts of public listings in the category or any descendant (refreshed every minute). */
 export async function categoryShortcuts(ctx: AppContext, now: Date = ctx.now()): Promise<CategoryShortcut[]> {
+  return memoPublic(ctx, 'category-shortcuts', 60_000, () => countCategoryShortcuts(ctx, now));
+}
+
+async function countCategoryShortcuts(ctx: AppContext, now: Date): Promise<CategoryShortcut[]> {
   const p = new SqlParams();
   const rows = await many<{ slug: string; name: string; kind: CategoryKind; listing_count: number }>(
     ctx.pool,
@@ -135,8 +140,7 @@ export async function categoryShortcuts(ctx: AppContext, now: Date = ctx.now()):
          FROM tree t
          JOIN listings l ON l.category_id = t.id
          JOIN shops s ON s.id = l.shop_id
-         LEFT JOIN LATERAL (SELECT * FROM auctions ax WHERE ax.listing_id = l.id ORDER BY ax.created_at DESC LIMIT 1) a ON true
-        WHERE ${publicListingSql(p.add(now, 'timestamptz'))}
+        WHERE ${publicListingExistsSql(p.add(now, 'timestamptz'))}
         GROUP BY t.root_id
      )
      SELECT r.slug, r.name, r.kind, coalesce(counts.n, 0)::int AS listing_count

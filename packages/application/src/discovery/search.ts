@@ -9,7 +9,8 @@ import { decodeCursor, encodeCursor, filterHash, type CursorKeyKind } from './cu
 import { deliverableSql } from './deliverable';
 import { coarsenPoint, resolvePlaceInternal } from './location';
 import { rotationOrderSql, sponsoredListingSql } from './sponsored';
-import { EFFECTIVE_PRICE_SQL, pointSql, publicListingSql, PUBLISHED_AT_SQL, SqlParams, timestampKeySql } from './sql';
+import { memoPublic } from '../core/memo';
+import { EFFECTIVE_PRICE_SQL, pointSql, publicListingExistsSql, publicListingSql, PUBLISHED_AT_SQL, SqlParams, timestampKeySql } from './sql';
 
 export interface AppliedSearchFilters {
   q: string | null;
@@ -292,10 +293,14 @@ export async function discoveryCategories(ctx: AppContext): Promise<DiscoveryCat
   }));
 }
 
-/** Most common size labels among public listings (optionally within a category) for the size filter. */
+/** Most common size labels among public listings (optionally within a category) for the size filter (refreshed every minute). */
 export async function sizeFacets(ctx: AppContext, args: { category?: string | null } = {}): Promise<{ label: string; count: number }[]> {
+  return memoPublic(ctx, `size-facets:${args.category ?? ''}`, 60_000, () => countSizeFacets(ctx, args));
+}
+
+async function countSizeFacets(ctx: AppContext, args: { category?: string | null }): Promise<{ label: string; count: number }[]> {
   const p = new SqlParams();
-  const where = [publicListingSql(p.add(ctx.now(), 'timestamptz')), `l.size_label IS NOT NULL`, `btrim(l.size_label) <> ''`];
+  const where = [publicListingExistsSql(p.add(ctx.now(), 'timestamptz')), `l.size_label IS NOT NULL`, `btrim(l.size_label) <> ''`];
   if (args.category) {
     const c = await categoryWithDescendants(ctx.pool, args.category);
     if (!c) return [];
@@ -304,7 +309,7 @@ export async function sizeFacets(ctx: AppContext, args: { category?: string | nu
   const rows = await many<{ label: string; n: number }>(
     ctx.pool,
     `SELECT min(l.size_label) AS label, count(*)::int AS n
-       FROM listings l JOIN shops s ON s.id = l.shop_id LEFT JOIN LATERAL (SELECT * FROM auctions ax WHERE ax.listing_id = l.id ORDER BY ax.created_at DESC LIMIT 1) a ON true
+       FROM listings l JOIN shops s ON s.id = l.shop_id
       WHERE ${where.join(' AND ')}
       GROUP BY lower(l.size_label)
       ORDER BY n DESC, label
