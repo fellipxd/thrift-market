@@ -40,6 +40,8 @@ export const routes = {
     signIn: (next?: string) => withQuery('/sign-in', { next }),
     signUp: (next?: string) => withQuery('/sign-up', { next }),
     verify: (next?: string) => withQuery('/verify', { next }),
+    forgotPassword: '/forgot-password',
+    resetPassword: (contact?: string) => withQuery('/reset-password', { contact }),
   },
   sell: {
     home: '/sell',

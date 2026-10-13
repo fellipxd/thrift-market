@@ -15,6 +15,7 @@ export * from './identity/passwords';
 export * from './identity/sessions';
 export * from './identity/accounts';
 export * from './identity/mfa';
+export * from './identity/credentials';
 export { totp, verifyTotp, timeStep } from './identity/totp';
 
 // Inventory authority

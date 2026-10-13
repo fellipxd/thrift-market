@@ -31,6 +31,19 @@ export const loginInput = z.object({
 });
 export type LoginInput = z.infer<typeof loginInput>;
 
+const newPassword = z.string({ message: 'Choose a new password' }).min(10, 'Use at least 10 characters').max(200);
+
+export const passwordResetRequestInput = z.object({ contact: z.string().trim().min(3, 'Enter your email or phone number').max(200) });
+export const passwordResetInput = z.object({
+  contact: z.string().trim().min(3, 'Enter your email or phone number').max(200),
+  code: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code'),
+  password: newPassword,
+});
+export const changePasswordInput = z
+  .object({ currentPassword: z.string().min(1, 'Enter your current password').max(200), newPassword })
+  .refine((v) => v.currentPassword !== v.newPassword, { path: ['newPassword'], message: 'Choose a password you haven’t been using' });
+export const sessionIdInput = z.object({ sessionId: z.string().uuid() });
+
 export const verifyContactInput = z.object({
   code: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code'),
 });

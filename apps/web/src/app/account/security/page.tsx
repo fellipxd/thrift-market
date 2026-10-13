@@ -1,14 +1,16 @@
 import { redirect } from 'next/navigation';
 import QRCode from 'qrcode';
-import { mfaStatus, startMfaEnrolment } from '@thrift/application';
+import { listMySessions, mfaStatus, startMfaEnrolment } from '@thrift/application';
+import { formatWat } from '@thrift/domain';
 import { ConfirmEnrolmentForm } from '@/components/trust/RecoveryCodesForm';
 import { ActionForm, SubmitButton } from '@/components/ui/ActionForm';
 import { Alert } from '@/components/ui/Alert';
-import { Card } from '@/components/ui/Card';
+import { Card, CardSection } from '@/components/ui/Card';
+import { TextField } from '@/components/ui/Field';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { routes, safeNext } from '@/lib/routes';
 import { getCtx, requireUserPage } from '@/server/session';
-import { confirmEnrolmentAction, restartEnrolmentAction } from './actions';
+import { changePasswordAction, confirmEnrolmentAction, restartEnrolmentAction, revokeOtherSessionsAction, revokeSessionAction } from './actions';
 
 export const metadata = { title: 'Security' };
 export const dynamic = 'force-dynamic';
@@ -20,9 +22,50 @@ export default async function SecurityPage({ searchParams }: { searchParams: Pro
   const ctx = await getCtx();
   const status = await mfaStatus(ctx);
   if (status.enrolled && !status.sessionVerified && status.required) redirect(routes.verifyMfa(next ?? '/admin'));
+  const sessions = await listMySessions(ctx);
+  const others = sessions.filter((s) => !s.current).length;
   return (
-    <div className="mx-auto max-w-xl space-y-5 px-4 py-6">
-      <PageHeader title="Two-step verification" description="Protects your account with a code from an authenticator app (Google Authenticator, Authy, 1Password, …)." />
+    <div className="mx-auto max-w-xl space-y-8 px-4 py-6">
+      <PageHeader title="Security" description="Your password, the devices signed in to your account, and two-step verification." />
+
+      <CardSection title="Password">
+        <ActionForm action={changePasswordAction} className="space-y-3" resetOnSuccess>
+          <TextField label="Current password" name="currentPassword" type="password" autoComplete="current-password" required />
+          <TextField label="New password" name="newPassword" type="password" autoComplete="new-password" hint="At least 10 characters. Other devices are signed out." required />
+          <SubmitButton pendingText="Saving…">Change password</SubmitButton>
+        </ActionForm>
+      </CardSection>
+
+      <CardSection title="Signed-in devices">
+        <ul className="divide-y divide-line border-y border-line" aria-label="Signed-in devices">
+          {sessions.map((s) => (
+            <li key={s.id} className="flex items-center justify-between gap-3 py-3 text-sm">
+              <span className="min-w-0">
+                <span className="font-semibold text-ink">{s.device}</span>
+                {s.current && <span className="label-caps ml-2 text-accent">This device</span>}
+                <span className="block text-muted">Signed in {formatWat(s.createdAt)} · last active {formatWat(s.lastSeenAt)}</span>
+              </span>
+              {!s.current && (
+                <ActionForm action={revokeSessionAction} showSuccess={false}>
+                  <input type="hidden" name="sessionId" value={s.id} />
+                  <SubmitButton variant="ghost" size="sm" pendingText="Signing out…">
+                    Sign out<span className="sr-only"> {s.device}</span>
+                  </SubmitButton>
+                </ActionForm>
+              )}
+            </li>
+          ))}
+        </ul>
+        {others > 0 && (
+          <ActionForm action={revokeOtherSessionsAction} className="mt-3">
+            <SubmitButton variant="secondary" size="sm" pendingText="Signing out…">Sign out of all other devices</SubmitButton>
+          </ActionForm>
+        )}
+      </CardSection>
+
+      <section className="space-y-3">
+        <h2 className="font-serif text-2xl text-ink">Two-step verification</h2>
+        <p className="text-sm text-muted">Protects your account with a code from an authenticator app (Google Authenticator, Authy, 1Password, …).</p>
       {status.required && !status.enrolled && <Alert tone="warning" title="Required for staff">Staff tools need two-step verification. Set it up to continue.</Alert>}
       {status.enrolled ? (
         <Card className="space-y-2 p-4 text-sm">
@@ -32,6 +75,7 @@ export default async function SecurityPage({ searchParams }: { searchParams: Pro
       ) : (
         <SetupCard next={next} />
       )}
+      </section>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import {
   cancelOrderBySeller,
   cancelPendingOrder,
   confirmReceipt,
+  conversationUpdates,
   getBag,
   getConversation,
   getOrderDetail,
@@ -30,7 +31,7 @@ import {
 import { seedAdPackages } from '../../src/seed/base';
 import { addAddress, ensureCheckoutReferenceData, key } from '../checkout/helpers';
 import { paidOrder } from '../fulfilment/helpers';
-import { closeTestServices, createListing, createShop, createUser, testServices } from '../support';
+import { closeTestServices, createListing, createShop, createUser, guestCtx, testServices } from '../support';
 
 afterAll(closeTestServices);
 beforeAll(async () => {
@@ -113,6 +114,11 @@ describe('T08: cross-object access between buyers and between sellers', () => {
     await denied('seller B reads A’s chat', getConversation(sellerB.ctx, conversationId));
     await denied('buyer B posts in A’s chat', sendMessage(buyerB.ctx, { conversationId, body: 'Hello from outside.', clientKey: key() }));
     await denied('buyer B marks A’s chat read', markConversationRead(buyerB.ctx, { conversationId }));
+    // Live updates (the polling endpoint behind the chat page) follow the same participant rule.
+    await denied('buyer B polls A’s chat', conversationUpdates(buyerB.ctx, conversationId));
+    await denied('seller B polls A’s chat', conversationUpdates(sellerB.ctx, conversationId));
+    const signedOut = await conversationUpdates(guestCtx(), conversationId).catch((e: { code?: string }) => e);
+    expect(['UNAUTHENTICATED', 'NOT_FOUND']).toContain((signedOut as { code?: string }).code);
 
     // Listings and promotions.
     await denied('seller B pauses A’s listing', pauseListing(sellerB.ctx, { listingId: chatListing.id }));
