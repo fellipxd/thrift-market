@@ -5,3 +5,4 @@ export * from './batches';
 export * from './templates';
 export { readAttributeSchema, humaniseKey, measurementLabel, attributeLabel, DEFAULT_SCHEMAS } from './schema';
 export { registerCatalogueJobs } from './jobs';
+export * from './import';

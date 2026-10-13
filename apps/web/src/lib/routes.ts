@@ -50,6 +50,7 @@ export const routes = {
     newListing: '/sell/listings/new',
     listing: (listingId: string) => `/sell/listings/${listingId}`,
     batches: '/sell/batches',
+    importListings: '/sell/import',
     offers: '/sell/offers',
     auctions: '/sell/auctions',
     newAuction: (listingId?: string) => withQuery('/sell/auctions/new', { listing: listingId }),

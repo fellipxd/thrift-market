@@ -32,9 +32,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const item = await load((await params).id);
   if (!item) return { title: 'Item not found' };
   const price = item.priceMinor ? `${formatNaira(item.priceMinor)} · ` : '';
+  // Shared links show the piece's current state, never an out-of-date "for sale" preview (R24).
+  const state = { sold: 'Sold', reserved: 'Reserved', paused: 'Shop paused', scheduled: 'Upcoming drop' }[item.availability as string] ?? null;
   return {
-    title: item.title,
-    description: `${price}${item.conditionLabel ?? ''}${item.size.label ? ` · size ${item.size.label}` : ''} · ${item.shop.name}, ${item.shop.city}`,
+    title: state ? `${state} · ${item.title}` : item.title,
+    description: `${state ? `${state}. ` : ''}${price}${item.conditionLabel ?? ''}${item.size.label ? ` · size ${item.size.label}` : ''} · ${item.shop.name}, ${item.shop.city}`,
   };
 }
 

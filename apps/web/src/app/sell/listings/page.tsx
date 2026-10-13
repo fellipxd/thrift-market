@@ -35,7 +35,15 @@ export default async function ListingsPage({ searchParams }: { searchParams: Pro
   const active = (TABS.find((t) => t.key === sp.status)?.key ?? 'all') as SellerListingFilter;
   return (
     <div className="space-y-5">
-      <PageHeader title="Listings" actions={<ButtonLink href={routes.sell.newListing}>Add an item</ButtonLink>} />
+      <PageHeader
+        title="Listings"
+        actions={
+          <>
+            <ButtonLink href={routes.sell.importListings} variant="secondary">Import from a spreadsheet</ButtonLink>
+            <ButtonLink href={routes.sell.newListing}>Add an item</ButtonLink>
+          </>
+        }
+      />
       <nav aria-label="Filter listings" className="-mx-1 overflow-x-auto">
         <ul className="flex gap-1 px-1 pb-1">
           {TABS.map((t) => (
