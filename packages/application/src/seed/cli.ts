@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { createPool, loadEnvFile, migrate, repoRoot, resetDatabase } from '@thrift/database';
+import { createPool, databaseSetupHint, loadEnvFile, migrate, repoRoot, resetDatabase } from '@thrift/database';
 import { LocalDiskStorage } from '@thrift/providers';
 import { DEV_APP_SECRET } from '../core/services';
 import { seedAdPackages, seedCategories, seedCourierRoutes, seedPlaces, seedPolicies, seedSettings } from './base';
@@ -33,6 +33,11 @@ try {
     await seedDemo(pool, storage, categories, log, { appSecret: process.env.APP_SECRET ?? DEV_APP_SECRET });
     log(`demo accounts (password "${DEMO_PASSWORD}"): ${Object.values(DEMO_ACCOUNTS).join(', ')}, plus shop owners amina@/tunde@/ebi@/musa@demo.thrift.test; demo staff two-step secret ${DEMO_MFA_SECRET}`);
   }
+} catch (err) {
+  const hint = databaseSetupHint(err, url);
+  if (!hint) throw err;
+  console.error(`\n[seed] ${(err as Error).message.split('\n')[0]}\n\n${hint}\n`);
+  process.exitCode = 1;
 } finally {
   await pool.end();
 }
