@@ -18,6 +18,7 @@ pnpm --filter @thrift/application load reads    --base URL --rate 200 --duration
 pnpm --filter @thrift/application load reads    --base URL --rate 500 --duration 300      # burst
 pnpm --filter @thrift/application load bids     --base URL --auctions 1000 --bidders 2000 --rate 50 --duration 600
 pnpm --filter @thrift/application load hot-item --buyers 200                               # one unique piece, many buyers at once
+pnpm --filter @thrift/application load search   --runs 30                                  # read-only: search query cost (text, typo, price-sorted category)
 ```
 
 - **reads** is open-loop: it starts the requested number of requests per second however slowly earlier ones finish, so
@@ -25,6 +26,8 @@ pnpm --filter @thrift/application load hot-item --buyers 200                    
 - **bids** creates live auctions through the real `createAuction` use case (copies of a seeded auction piece with its
   photos) and bids over HTTP with bearer sessions. Too-low (409), rejected (400/422) and rate-limited (429) bids are
   expected outcomes. Afterwards it checks that every auction's bid sequence is gap-free with strictly rising amounts.
+- **search** runs the search use case in-process, one call at a time, so it measures query cost without HTTP or
+  concurrency. `--word`, `--words`, `--typo` and `--category` swap in terms that exist in the data being measured.
 - **hot-item** runs in-process because checkout is a server action with no JSON API; it checks exactly one live order
   and a balanced stock row.
 
@@ -57,13 +60,18 @@ nothing about staging capacity, which needs real hardware, several web processes
 concurrent API requests got `503 BUSY` with `Retry-After: 5` (one short log line each) instead of `500`, and requests
 succeeded again as soon as the lock cleared. Form submissions show “busy, nothing was changed”.
 
+**Search follow-up (2026-10-13, `load search`, p50 / p95):** price-sorted pages priced and sorted every piece in the
+category through the auction join (200–250 / 320–360 ms per large category, 815 / 1,017 ms across everything). Fixed-price
+pieces now come off price-ordered partial indexes (migration 0940) with auction pieces merged by current bid, and the
+card query only looks up auctions for auction listings: 6–7 / 10–11 ms. Text search matches exactly first and only widens
+to spelling correction and trigram similarity when exact matches fill less than a page (one common word 110 → 72 ms;
+"shrit" now finds shirts).
+
 **Watch items for the staging run:**
 
-- Relevance-ranked text search scores every match (60–130 ms here, where the synthetic catalogue's small vocabulary
-  makes each query match hundreds to thousands of pieces). Measure with realistic titles before considering a
-  candidate cap or a dedicated search service (ADR-0007).
-- Price-sorted category browsing computes the effective price (listed price or current bid) for every piece in the
-  category (~90 ms for a large category).
+- Relevance-ranked text search still scores every match: 72 ms p50 for a word matching ~6,300 of 100,000 synthetic
+  pieces (the synthetic catalogue's small vocabulary makes matches unusually broad). Measure with `load search` on
+  realistic titles before considering a candidate cap or a dedicated search service (ADR-0007).
 - Web processes and `WEB_DB_POOL_MAX` must be sized together against PostgreSQL's connection limit.
 - Not covered yet: the 1,000-concurrent-session mix with signed-in pages, 1,000 scheduled auctions closing, job lag and
   queue depth under load, image delivery (CDN), backup restore (T18).

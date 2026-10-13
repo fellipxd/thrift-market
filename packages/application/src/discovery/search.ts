@@ -6,6 +6,7 @@ import type { AppContext } from '../core/context';
 import { parseInput } from '../core/validation';
 import { DISCOVERY_CARD_COLUMNS, toDiscoveryCard, type DiscoveryCard } from './cards';
 import { decodeCursor, encodeCursor, filterHash, type CursorKeyKind } from './cursor';
+import { correctQuery } from './spelling';
 import { deliverableSql } from './deliverable';
 import { coarsenPoint, resolvePlaceInternal } from './location';
 import { rotationOrderSql, sponsoredListingSql } from './sponsored';
@@ -37,6 +38,8 @@ export interface SearchResult {
   /** Sort actually applied (relevance needs a query; nearest needs a location). */
   sort: SearchSort;
   filters: AppliedSearchFilters;
+  /** Set when few exact matches existed and misspelled words were corrected ("showing results for …"). */
+  correctedQuery: string | null;
   serverNow: string;
 }
 
@@ -55,6 +58,12 @@ interface Prepared {
   categoryIds: string[] | null;
   shopId: string | null;
   point: { lat: number; lng: number } | null;
+  /**
+   * Text matching: 'exact' = full-text only (cheap, index-driven); 'fuzzy' = also spelling-corrected words and
+   * trigram title similarity, used only when exact matching finds less than a page.
+   */
+  match: 'exact' | 'fuzzy';
+  correctedQ: string | null;
 }
 
 /** Category and its descendants (any depth). */
@@ -123,7 +132,7 @@ async function prepare(ctx: AppContext, raw: unknown): Promise<Prepared> {
     radiusKm: point ? filters.radiusKm : null,
     verifiedOnly: filters.verifiedOnly,
   };
-  return { filters, applied, sort, categoryIds, shopId, point };
+  return { filters, applied, sort, categoryIds, shopId, point, match: 'exact', correctedQ: null };
 }
 
 /** WHERE conditions for the applied filters (aliases from LISTING_CARD_FROM plus dc delivery_coverage). */
@@ -132,9 +141,16 @@ function buildWhere(ctx: AppContext, p: SqlParams, prep: Prepared, nowParam: str
   const where = [publicListingSql(nowParam)];
   if (applied.q) {
     const q = p.add(applied.q, 'text');
-    where.push(`(l.search_vector @@ websearch_to_tsquery('simple', ${q}) OR lower(${q}) <% lower(l.title))`);
+    if (prep.match === 'exact') {
+      where.push(`l.search_vector @@ websearch_to_tsquery('simple', ${q})`);
+    } else {
+      const cq = p.add(prep.correctedQ ?? applied.q, 'text');
+      where.push(`(l.search_vector @@ websearch_to_tsquery('simple', ${cq}) OR lower(${q}) <% lower(l.title))`);
+    }
   }
-  if (prep.categoryIds) where.push(`l.category_id = ANY(${p.add(prep.categoryIds, 'uuid[]')})`);
+  if (prep.categoryIds) {
+    where.push(prep.categoryIds.length === 1 ? `l.category_id = ${p.add(prep.categoryIds[0], 'uuid')}` : `l.category_id = ANY(${p.add(prep.categoryIds, 'uuid[]')})`);
+  }
   if (applied.sizes.length) where.push(`lower(l.size_label) = ANY(${p.add(applied.sizes.map((s) => s.toLowerCase()), 'text[]')})`);
   if (applied.minPriceMinor !== null) where.push(`${EFFECTIVE_PRICE_SQL} >= ${p.add(applied.minPriceMinor, 'bigint')}`);
   if (applied.maxPriceMinor !== null) where.push(`${EFFECTIVE_PRICE_SQL} <= ${p.add(applied.maxPriceMinor, 'bigint')}`);
@@ -162,8 +178,9 @@ function sortSpec(p: SqlParams, prep: Prepared): SortSpec {
   switch (prep.sort) {
     case 'relevance': {
       const q = p.add(prep.applied.q ?? '', 'text');
+      const rq = prep.match === 'fuzzy' && prep.correctedQ ? p.add(prep.correctedQ, 'text') : q;
       return {
-        expr: `round((ts_rank_cd(l.search_vector, websearch_to_tsquery('simple', ${q})) * 2 + word_similarity(lower(${q}), lower(l.title))) * 10000)::bigint`,
+        expr: `round((ts_rank_cd(l.search_vector, websearch_to_tsquery('simple', ${rq})) * 2 + word_similarity(lower(${q}), lower(l.title))) * 10000)::bigint`,
         kind: 'int',
         dir: 'DESC',
       };
@@ -204,6 +221,7 @@ function buildMainQuery(ctx: AppContext, prep: Prepared, now: Date, hash: string
     where.push(`(${spec.expr}, l.id) ${spec.dir === 'DESC' ? '<' : '>'} (${key}, ${p.add(c.id, 'uuid')})`);
   }
   const keySelect = spec.kind === 'ts' ? timestampKeySql(spec.expr) : spec.expr;
+  if (prep.sort === 'price_asc' || prep.sort === 'price_desc') return priceSortedQuery(p, where, spec.dir, prep.filters.limit + 1);
   const sql = `SELECT ${DISCOVERY_CARD_COLUMNS}, ${keySelect} AS sort_key
       FROM ${FROM_SQL}
      WHERE ${where.join('\n       AND ')}
@@ -212,17 +230,71 @@ function buildMainQuery(ctx: AppContext, prep: Prepared, now: Date, hash: string
   return { sql, values: p.values };
 }
 
+/**
+ * Price order without pricing every match: fixed-price pieces come straight off the (category, price, id) partial
+ * indexes and stop after one page; auction pieces (few, and their price is the current bid on another table) are
+ * sorted separately; the two pages are merged. Same rows and order as sorting by EFFECTIVE_PRICE_SQL, because for
+ * non-auction listings that expression is coalesce(l.price_minor, 0). The keyset condition already in `where`
+ * uses EFFECTIVE_PRICE_SQL; each branch repeats it with its own expression so the index can serve it.
+ */
+function priceSortedQuery(p: SqlParams, where: string[], dir: 'ASC' | 'DESC', take: number): { sql: string; values: unknown[] } {
+  const fixedPrice = 'coalesce(l.price_minor, 0)';
+  const limit = p.add(take, 'int');
+  const branch = (mode: string, expr: string) => {
+    const conds = where.map((w) => w.replaceAll(`(${EFFECTIVE_PRICE_SQL}, l.id)`, `(${expr}, l.id)`));
+    return `(SELECT ${DISCOVERY_CARD_COLUMNS}, ${expr} AS sort_key
+        FROM ${FROM_SQL}
+       WHERE ${[...conds, mode].join('\n         AND ')}
+       ORDER BY ${expr} ${dir}, l.id ${dir}
+       LIMIT ${limit})`;
+  };
+  const sql = `SELECT * FROM (
+      ${branch(`l.sale_mode <> 'auction'`, fixedPrice)}
+      UNION ALL
+      ${branch(`l.sale_mode = 'auction'`, EFFECTIVE_PRICE_SQL)}
+    ) u
+    ORDER BY sort_key ${dir}, id ${dir}
+    LIMIT ${limit}`;
+  return { sql, values: p.values };
+}
+
 /** The exact main search statement for given filters (used by the performance test to EXPLAIN it). */
 export async function searchQueryForExplain(ctx: AppContext, raw: unknown): Promise<{ sql: string; values: unknown[] }> {
   const prep = await prepare(ctx, raw);
   const now = ctx.now();
-  return buildMainQuery(ctx, prep, now, filterHash({ ...prep.applied, sort: prep.sort }));
+  return buildMainQuery(ctx, prep, now, pageHash(prep));
+}
+
+/** Cursor filter hash: the applied filters, sort and text-match mode the page was produced with. */
+const pageHash = (prep: Prepared) => filterHash({ ...prep.applied, sort: prep.sort, ...(prep.match === 'fuzzy' ? { match: 'fuzzy', cq: prep.correctedQ } : {}) });
+
+/**
+ * Chooses the text-match mode. Exact full-text first; only when it finds less than a page does search widen to
+ * spelling-corrected words plus trigram similarity (the expensive part). Later pages keep their first page's mode.
+ */
+async function chooseMatch(ctx: AppContext, prep: Prepared, now: Date): Promise<void> {
+  if (!prep.applied.q) return;
+  const fuzzy = async () => {
+    prep.match = 'fuzzy';
+    prep.correctedQ = await correctQuery(ctx, prep.applied.q!);
+  };
+  if (prep.filters.cursor) {
+    try {
+      decodeCursor(prep.filters.cursor, { sort: prep.sort, filters: pageHash(prep), kinds: [sortSpec(new SqlParams(), prep).kind] });
+    } catch {
+      await fuzzy();
+    }
+    return;
+  }
+  const exact = await countResults(ctx, prep, now, prep.filters.limit + 1);
+  if (exact.count <= prep.filters.limit) await fuzzy();
 }
 
 export async function searchListings(ctx: AppContext, raw: unknown): Promise<SearchResult> {
   const prep = await prepare(ctx, raw);
   const now = ctx.now();
-  const hash = filterHash({ ...prep.applied, sort: prep.sort });
+  await chooseMatch(ctx, prep, now);
+  const hash = pageHash(prep);
   const limit = prep.filters.limit;
   const main = buildMainQuery(ctx, prep, now, hash);
 
@@ -244,19 +316,20 @@ export async function searchListings(ctx: AppContext, raw: unknown): Promise<Sea
     total,
     sort: prep.sort,
     filters: prep.applied,
+    correctedQuery: prep.match === 'fuzzy' && prep.correctedQ && page.length > 0 ? prep.correctedQ : null,
     serverNow: now.toISOString(),
   };
 }
 
-async function countResults(ctx: AppContext, prep: Prepared, now: Date): Promise<{ count: number; capped: boolean }> {
+async function countResults(ctx: AppContext, prep: Prepared, now: Date, cap: number = COUNT_CAP): Promise<{ count: number; capped: boolean }> {
   const p = new SqlParams();
   const where = buildWhere(ctx, p, prep, p.add(now, 'timestamptz'));
   const r = await one<{ n: number }>(
     ctx.pool,
-    `SELECT count(*)::int AS n FROM (SELECT 1 FROM ${FROM_SQL} WHERE ${where.join(' AND ')} LIMIT ${COUNT_CAP + 1}) x`,
+    `SELECT count(*)::int AS n FROM (SELECT 1 FROM ${FROM_SQL} WHERE ${where.join(' AND ')} LIMIT ${cap + 1}) x`,
     p.values,
   );
-  return { count: Math.min(r.n, COUNT_CAP), capped: r.n > COUNT_CAP };
+  return { count: Math.min(r.n, cap), capped: r.n > cap };
 }
 
 async function sponsoredForSearch(ctx: AppContext, prep: Prepared, now: Date): Promise<DiscoveryCard[]> {

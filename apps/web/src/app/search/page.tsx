@@ -174,6 +174,11 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               {result.total.capped ? `${result.total.count}+` : result.total.count} {result.total.count === 1 ? 'piece' : 'pieces'}
             </p>
           )}
+          {result?.correctedQuery && (
+            <p className="text-sm text-muted">
+              Including results for <span className="font-semibold text-ink">“{result.correctedQuery}”</span>
+            </p>
+          )}
         </div>
         <LocationBar location={location} />
       </div>

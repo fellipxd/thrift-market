@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { isDomainError } from '@thrift/domain';
 import { searchListings, type SearchResult } from '../../src/discovery';
+import { editDistance } from '../../src/discovery/spelling';
 import { closeTestServices, guestCtx, testServices, uniq, type TestShop } from '../support';
 import {
   auctionListing,
@@ -65,6 +66,41 @@ describe('text search', () => {
     const brand = await listing(shop, 'Tailored blazer', { brand: 'Zenobia' });
     const byBrand = await searchListings(ctx, { q: 'zenobia', shop: shop.slug });
     expect(ids(byBrand)).toEqual([brand.id]);
+  });
+
+  it('corrects misspelled words against the catalogue only when exact matches run short, across pages', async () => {
+    const own = await createShop();
+    const kaftans: string[] = [];
+    for (let i = 0; i < 3; i++) kaftans.push((await listing(own, `Embroidered qwkaftan ${i}`)).id);
+    const ctx = guestCtx();
+
+    // Transposed letters: trigram similarity misses this, the catalogue-vocabulary correction does not.
+    const first = await searchListings(ctx, { q: 'qwkaftna', shop: own.slug, limit: 2 });
+    expect(first.correctedQuery).toBe('qwkaftan');
+    expect(first.items).toHaveLength(2);
+    expect(first.nextCursor).toBeTruthy();
+    const second = await searchListings(ctx, { q: 'qwkaftna', shop: own.slug, limit: 2, cursor: first.nextCursor! });
+    expect([...ids(first), ...ids(second)].sort()).toEqual([...kaftans].sort());
+
+    // Enough exact matches: no correction, and exact-mode cursors keep working.
+    const exact = await searchListings(ctx, { q: 'qwkaftan', shop: own.slug, limit: 2 });
+    expect(exact.correctedQuery).toBeNull();
+    const exactNext = await searchListings(ctx, { q: 'qwkaftan', shop: own.slug, limit: 2, cursor: exact.nextCursor! });
+    expect([...ids(exact), ...ids(exactNext)].sort()).toEqual([...kaftans].sort());
+
+    // Nothing close enough: no correction is claimed.
+    const none = await searchListings(ctx, { q: 'zzqxvb', shop: own.slug });
+    expect(none.items).toEqual([]);
+    expect(none.correctedQuery).toBeNull();
+  });
+
+  it('measures edit distance with transpositions and an early cut-off', () => {
+    expect(editDistance('shrit', 'shirt')).toBe(1);
+    expect(editDistance('linnen', 'linen')).toBe(1);
+    expect(editDistance('trousres', 'trousers')).toBe(1);
+    expect(editDistance('boot', 'boot')).toBe(0);
+    expect(editDistance('abc', 'xyzabc', 2)).toBe(3);
+    expect(editDistance('blazer', 'sandal', 1)).toBe(2);
   });
 
   it('treats punctuation-only and hostile queries as plain text', async () => {
@@ -275,6 +311,27 @@ describe('pagination', () => {
       } while (cursor);
       expect(new Set(seen).size).toBe(seen.length);
       for (const id of original) expect(seen).toContain(id);
+    }
+  });
+
+  it('orders by what a buyer pays now (listed price or current bid) across fixed-price and auction pieces, page by page', async () => {
+    const shop = await createShop();
+    const now = Date.now();
+    const a = await listing(shop, 'Price order A', { priceMinor: 500_000 });
+    const c = await listing(shop, 'Price order C', { priceMinor: 1_500_000 });
+    const e = await listing(shop, 'Price order E', { priceMinor: 2_500_000 });
+    const b = await auctionListing(shop, 'Price order B', { status: 'live', startsAt: new Date(now - HOUR), endsAt: new Date(now + HOUR), openingMinor: 1_000_000 });
+    const d = await auctionListing(shop, 'Price order D', { status: 'live', startsAt: new Date(now - HOUR), endsAt: new Date(now + HOUR), openingMinor: 600_000, currentBidMinor: 2_000_000 });
+    const expected = [a.id, b.id, c.id, d.id, e.id];
+    for (const sort of ['price_asc', 'price_desc'] as const) {
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      do {
+        const r = await searchListings(guestCtx(), { shop: shop.slug, sort, limit: 2, cursor });
+        seen.push(...ids(r));
+        cursor = r.nextCursor ?? undefined;
+      } while (cursor);
+      expect(seen).toEqual(sort === 'price_asc' ? expected : [...expected].reverse());
     }
   });
 

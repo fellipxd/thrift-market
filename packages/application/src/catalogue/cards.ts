@@ -13,11 +13,15 @@ export const LISTING_CARD_COLUMNS = `
     WHERE lm.listing_id = l.id ORDER BY lm.position LIMIT 1) AS photo_key,
   a.id AS auction_id, a.status AS auction_status, a.current_bid_minor, a.opening_price_minor, a.ends_at AS auction_ends_at, a.starts_at AS auction_starts_at`;
 
+/**
+ * The auction join is gated on sale mode so fixed-price pieces skip the lookup entirely (most of the catalogue; it
+ * matters when a query ranks or filters thousands of rows before its LIMIT). Only auction listings carry auction fields.
+ */
 export const LISTING_CARD_FROM = `
   listings l
   JOIN shops s ON s.id = l.shop_id
   LEFT JOIN inventory_stock st ON st.listing_id = l.id
-  LEFT JOIN LATERAL (SELECT * FROM auctions ax WHERE ax.listing_id = l.id ORDER BY ax.created_at DESC LIMIT 1) a ON true`;
+  LEFT JOIN LATERAL (SELECT * FROM auctions ax WHERE l.sale_mode = 'auction' AND ax.listing_id = l.id ORDER BY ax.created_at DESC LIMIT 1) a ON true`;
 
 /** Public visibility: published listings of active shops. */
 export const LISTING_PUBLIC_WHERE = `s.status = 'active' AND l.status IN ('active','reserved')`;

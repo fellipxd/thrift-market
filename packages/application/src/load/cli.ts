@@ -2,6 +2,7 @@ import { createPool, loadEnvFile, many, one, type Pool } from '@thrift/database'
 import { isDomainError } from '@thrift/domain';
 import { InMemoryStorage } from '@thrift/providers';
 import { createAuction } from '../auctions/commands';
+import { searchListings } from '../discovery/search';
 import { startCheckout } from '../checkout/checkout';
 import type { UserActor } from '../core/context';
 import { createServices, DEV_APP_SECRET } from '../core/services';
@@ -17,6 +18,7 @@ import { initialiseStock } from '../inventory/authority';
  *   pnpm --filter @thrift/application load reads    --base http://localhost:3000 --rate 200 --duration 3600
  *   pnpm --filter @thrift/application load bids     --base http://localhost:3000 --auctions 50 --bidders 200 --rate 50 --duration 300
  *   pnpm --filter @thrift/application load hot-item --buyers 200
+ *   pnpm --filter @thrift/application load search   --runs 30      # in-process search timings (text, typos, price-sorted categories)
  *
  * Writes synthetic users, listings and auctions, so it refuses any database not named *_dev, *_e2e, *_load or *_staging.
  */
@@ -327,6 +329,44 @@ async function hotItem(pool: Pool): Promise<boolean> {
 
 // ---------------------------------------------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------------------------------------------
+// Search timings: the application search call in-process (no HTTP), one at a time, so the numbers are query cost only.
+// Read-only; run it against a copy of production-like data (staging) for numbers that mean anything.
+// ---------------------------------------------------------------------------------------------------------------
+
+async function searchTimings(): Promise<boolean> {
+  const svc = createServices({ databaseUrl: process.env.DATABASE_URL!, baseUrl: 'http://localhost', appSecret: process.env.APP_SECRET ?? DEV_APP_SECRET, env: 'development', storage: new InMemoryStorage(), poolMax: 2, applicationName: 'thrift-load' });
+  const ctx = svc.context({ kind: 'guest' });
+  const runs = flag('runs', 30);
+  const category = flagText('category', '');
+  const biggest = category || (await one<{ slug: string }>(svc.pool, `SELECT c.slug FROM listings l JOIN categories c ON c.id = l.category_id WHERE l.status = 'active' GROUP BY c.slug ORDER BY count(*) DESC LIMIT 1`)).slug;
+  const cases: Record<string, Record<string, string>> = {
+    'text: one word': { q: flagText('word', 'shirt') },
+    'text: two words': { q: flagText('words', 'black shirt') },
+    'text: typo': { q: flagText('typo', 'shrit') },
+    'text: no match': { q: 'zzqxvbw' },
+    'category newest': { category: biggest },
+    'category price asc': { category: biggest, sort: 'price_asc' },
+    'category price desc': { category: biggest, sort: 'price_desc' },
+    'everything price asc': { sort: 'price_asc' },
+  };
+  const stats = new Stats();
+  try {
+    for (const [name, input] of Object.entries(cases)) {
+      await searchListings(ctx, input); // warm caches (vocabulary, category tree)
+      for (let i = 0; i < runs; i++) {
+        const t = performance.now();
+        const r = await searchListings(ctx, input);
+        stats.record(name, performance.now() - t, r.items.length ? 'hits' : 'empty');
+        if (i === 0 && r.correctedQuery) console.log(`${name}: "${input.q}" → including results for "${r.correctedQuery}"`);
+      }
+    }
+  } finally {
+    await svc.pool.end();
+  }
+  return stats.report('read', () => true);
+}
+
 const url = process.env.DATABASE_URL;
 if (!url) throw new Error('DATABASE_URL is not set');
 const pool = createPool({ connectionString: url, max: 4, application_name: 'thrift-load' });
@@ -340,8 +380,9 @@ try {
   else if (scenario === 'reads') ok = await reads(pool);
   else if (scenario === 'bids') ok = await bids(pool);
   else if (scenario === 'hot-item') ok = await hotItem(pool);
+  else if (scenario === 'search') ok = await searchTimings();
   else {
-    console.log('usage: load fixtures|reads|bids|hot-item [--base URL] [--rate N] [--duration S] [--listings N] [--auctions N] [--bidders N] [--buyers N]');
+    console.log('usage: load fixtures|reads|bids|hot-item|search [--base URL] [--rate N] [--duration S] [--listings N] [--auctions N] [--bidders N] [--buyers N]');
     ok = false;
   }
 } finally {
