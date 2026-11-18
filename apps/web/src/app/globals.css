@@ -107,11 +107,19 @@
     letter-spacing: 0.14em;
     text-transform: uppercase;
   }
-  /* Editorial display type: high-contrast serif with optical sizing. */
+  /*
+   * Editorial display type: high-contrast serif. At large sizes automatic optical sizing picks Bodoni's finest
+   * hairlines, which read as faint, so the optical size is capped and the weight nudged up.
+   */
   .display {
     font-family: var(--font-serif);
-    font-weight: 400;
+    font-weight: 500;
+    font-variation-settings: 'opsz' 32;
     letter-spacing: -0.01em;
     line-height: 1.05;
+  }
+  /* Smaller serif headings (cards, sections) keep automatic optical sizing; same slight weight. */
+  .font-serif {
+    font-weight: 500;
   }
 }
