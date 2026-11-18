@@ -41,12 +41,12 @@ pnpm dev:worker                 # background worker (reservations, auctions, pay
 If `pnpm db:migrate` or `pnpm db:reseed` can't connect, it prints what went wrong and what to run (for example
 "PostgreSQL rejected the password": another PostgreSQL is probably using port 5432).
 
-Demo items show real photographs from `assets/demo-photos/` when it has them (public domain / CC0, hand-picked from
-[Openverse](https://openverse.org); sources and licences in `assets/demo-photos/CREDITS.md`) and generated
-illustrations where there is no photo, including every flaw close-up. To change the photos: `pnpm --filter
-@thrift/application demo-photos candidates` writes numbered contact sheets to `.data/demo-photo-candidates/`; put the
-chosen ids in `assets/demo-photos/selection.json`, run `pnpm --filter @thrift/application demo-photos`, then
-`pnpm db:reseed`.
+Demo items show real photographs from `assets/demo-photos/`: public domain / CC0, hand-picked from
+[Openverse](https://openverse.org), with sources and licences in `assets/demo-photos/CREDITS.md`. Items without a
+suitable photo (the bucket hat and the kaftan) and every flaw close-up use generated illustrations. To change them:
+`pnpm --filter @thrift/application demo-photos candidates` writes numbered contact sheets to
+`.data/demo-photo-candidates/`; put the chosen ids in `assets/demo-photos/selection.json`, then run
+`pnpm --filter @thrift/application demo-photos` and `pnpm db:reseed`.
 
 Demo password for all demo accounts: `thrift-demo-pass` (e.g. `buyer@demo.thrift.test`, `amina@demo.thrift.test`,
 `admin@demo.thrift.test`). Staff tools ask for a two-step code: the demo staff accounts (admin@, finance@, support@)

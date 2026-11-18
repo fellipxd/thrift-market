@@ -1,0 +1,50 @@
+{
+  "Relaxed linen shirt": [
+    "61e248c0-a524-49e8-a4f4-df0ac2e3efe0"
+  ],
+  "Green midi wrap dress": [
+    "8d5844c5-ad23-4de7-832d-1a5dd5428ccd"
+  ],
+  "Vintage leather shoulder bag": [
+    "3e413e9e-4570-4468-81ed-4579c1332f55"
+  ],
+  "Striped cotton shirt": [
+    {
+      "id": "4e9f0d11-9423-481d-8263-62f67b7718f5",
+      "position": "left"
+    }
+  ],
+  "Plain white tees (bundle stock)": [
+    "41a0f1af-64b4-44af-b6d9-28248df280e6"
+  ],
+  "Denim trucker jacket": [
+    "4e795b46-35b9-4859-a0dc-b0eb650db670"
+  ],
+  "High-waist mom jeans": [
+    "18b0a57d-efae-493a-9035-ff518c30a2ff"
+  ],
+  "Retro running sneakers": [
+    "b5d1b46e-f229-41a6-8d1c-475fe0b53826"
+  ],
+  "Black block heels": [
+    "f1566c00-53ab-446b-a953-55b1dbd816dc"
+  ],
+  "White leather sneakers": [
+    {
+      "id": "9623beb0-382a-4141-96e7-965431ae4c9a",
+      "position": "right"
+    }
+  ],
+  "Woven leather belt": [
+    {
+      "id": "6b6d80c7-1431-4a5a-be0c-a9bc68b6220b",
+      "position": "right"
+    }
+  ],
+  "Silk-blend head wrap": [
+    "6f194609-f7bb-416e-b25e-b7567eccdf4d"
+  ],
+  "Classic analogue watch": [
+    "bd1d0fa7-6ec6-4362-a487-f8f9f70dccba"
+  ]
+}

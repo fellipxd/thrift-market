@@ -12,7 +12,8 @@ import { DEMO_PHOTO_DIR, DEMO_PHOTO_LICENCES, type DemoPhotoCredit, type DemoPho
  *
  *   pnpm --filter @thrift/application demo-photos candidates [--item "Relaxed linen shirt"] [--q "linen shirt"] [--source stocksnap]
  *     → .data/demo-photo-candidates/<item>.jpg: a numbered contact sheet per item, with <item>.json listing the ids.
- *   Put the chosen ids in assets/demo-photos/selection.json ({ "<item title>": ["<openverse id>", ...] }), then:
+ *   Put the chosen ids in assets/demo-photos/selection.json ({ "<item title>": ["<openverse id>", ...] }; an entry can
+ *   be { "id": "...", "position": "left" } to move the 4:5 crop: centre (default), left, right, top, bottom), then:
  *
  *   pnpm --filter @thrift/application demo-photos
  *     → downloads exactly the selected photos into assets/demo-photos with manifest.json and CREDITS.md (source,
@@ -92,14 +93,18 @@ async function search(q: string, source?: string): Promise<OpenverseImage[]> {
   return (body.results ?? []).filter(vetted);
 }
 
-/** Largest 4:5 portrait crop (at most 960 × 1200, never enlarged), subject-aware, metadata stripped. */
-async function toPortrait(raw: Buffer): Promise<Buffer> {
+const CROP_POSITIONS = ['centre', 'left', 'right', 'top', 'bottom'] as const;
+type CropPosition = (typeof CROP_POSITIONS)[number];
+type SelectionEntry = string | { id: string; position?: CropPosition };
+
+/** Largest 4:5 portrait crop (at most 960 × 1200, never enlarged), metadata stripped. */
+async function toPortrait(raw: Buffer, position: CropPosition = 'centre'): Promise<Buffer> {
   const img = sharp(raw).rotate();
   const { width = 0, height = 0 } = await img.metadata();
   const h = Math.min(1200, height, Math.floor((width * 5) / 4));
   const w = Math.floor((h * 4) / 5);
   if (w < 320) throw new Error(`too small (${width}×${height})`);
-  return img.resize(w, h, { fit: 'cover', position: 'attention' }).jpeg({ quality: 84 }).toBuffer();
+  return img.resize(w, h, { fit: 'cover', position }).jpeg({ quality: 84 }).toBuffer();
 }
 
 /** Contact sheet: up to 12 candidates in a 4 × 3 grid, numbered from 1. */
@@ -155,21 +160,23 @@ async function candidates(): Promise<void> {
 
 async function fetchSelected(): Promise<void> {
   if (!existsSync(SELECTION)) throw new Error(`No ${SELECTION}. Run "demo-photos candidates" and choose photos first.`);
-  const selection = JSON.parse(readFileSync(SELECTION, 'utf8')) as Record<string, string[]>;
+  const selection = JSON.parse(readFileSync(SELECTION, 'utf8')) as Record<string, SelectionEntry[]>;
   const titles = new Set(demoPhotoSubjects().map((s) => s.title));
   const photos: DemoPhotoCredit[] = [];
-  for (const [item, ids] of Object.entries(selection)) {
+  for (const [item, entries] of Object.entries(selection)) {
     if (!titles.has(item)) {
       console.error(`[photos] selection names "${item}", which is not a demo item; skipped`);
       continue;
     }
-    for (const id of ids) {
+    for (const entry of entries) {
+      const { id, position } = typeof entry === 'string' ? { id: entry, position: undefined } : entry;
       try {
+        if (position && !CROP_POSITIONS.includes(position)) throw new Error(`unknown crop position "${position}"`);
         const meta = await getJson<OpenverseImage>(`${API}${id}/`);
         if (!vetted(meta)) throw new Error(`licence "${meta.license}" is not public domain / CC0`);
         const file = `${slug(item)}-${photos.filter((p) => p.item === item).length + 1}.jpg`;
         mkdirSync(DEMO_PHOTO_DIR, { recursive: true });
-        writeFileSync(path.join(DEMO_PHOTO_DIR, file), await toPortrait(await getImage(id, true)));
+        writeFileSync(path.join(DEMO_PHOTO_DIR, file), await toPortrait(await getImage(id, true), position));
         photos.push({
           file,
           item,
